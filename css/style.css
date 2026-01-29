@@ -378,7 +378,7 @@ body {
 }
 
 .hero-quote {
-  font-size: clamp(1.8rem, 4.8vw, 4rem);
+  font-size: clamp(1.6rem, 4.2vw, 3.4rem);
   font-weight: 800;
   line-height: 1.5;
   letter-spacing: -0.02em;
@@ -398,7 +398,7 @@ body {
   display: block;
   margin: 16px auto 0;
   max-width: min(720px, 90vw);
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: 500;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.7);
@@ -1477,7 +1477,7 @@ body {
   }
 
   .hero-quote {
-    font-size: clamp(1.2rem, 4.8vw, 2.1rem);
+    font-size: clamp(1.05rem, 4.2vw, 1.8rem);
   }
 
   .feature-card {
