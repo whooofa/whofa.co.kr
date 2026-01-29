@@ -1,4 +1,4 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css");
 
 * {
   margin: 0;
@@ -17,7 +17,7 @@ html {
 
 body {
   font-family:
-    "Pretendard",
+    "SUIT",
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
@@ -325,7 +325,9 @@ body {
   width: 100%;
   height: 100%;
   z-index: 2;
-  pointer-events: none;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
   overflow-y: scroll;
   overflow-x: hidden;
   -ms-overflow-style: none;
@@ -371,36 +373,36 @@ body {
 
 @media (max-width: 768px) {
   .hero-text-flow {
-    overflow: hidden;
-  }
-
-  .hero-text {
-    position: absolute;
-    inset: 0;
-    height: 100%;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    will-change: opacity;
-  }
-
-  .hero-text.active {
-    opacity: 1;
+    overflow-y: scroll;
   }
 }
 
 .hero-quote {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 700;
+  font-size: clamp(1.8rem, 4.8vw, 4rem);
+  font-weight: 800;
   line-height: 1.5;
   letter-spacing: -0.02em;
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .hero-quote .highlight {
   color: #ff6a26;
-  font-weight: 700;
+  font-weight: 800;
+}
+
+.hero-subtext {
+  display: block;
+  margin: 16px auto 0;
+  max-width: min(720px, 90vw);
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: normal;
 }
 
 .scroll-indicator {
@@ -538,6 +540,16 @@ body {
   contain: layout style;
 }
 
+.feature-text-content.has-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.feature-text-content.has-rating .feature-kicker {
+  margin-bottom: 40px;
+}
+
 .phone-mockup-container {
   position: relative;
   display: flex;
@@ -622,10 +634,86 @@ body {
 }
 
 .section-title {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 700;
+  font-size: clamp(2.2rem, 5.2vw, 4.5rem);
+  font-weight: 800;
   margin-bottom: 30px;
   color: #ffffff;
+}
+
+.feature-text-content.has-rating .section-title {
+  margin-bottom: 48px;
+}
+
+.feature-kicker {
+  font-size: 1.7rem;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: #ffffff;
+  font-weight: 900;
+  margin-bottom: 14px;
+}
+
+.feature-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.feature-review {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  white-space: normal;
+  max-width: min(720px, 90vw);
+}
+
+.review-quote {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.review-author {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 500;
+}
+
+.review-separator {
+  margin: 0 6px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.rating-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.rating-stars {
+  display: inline-flex;
+  gap: 4px;
+  color: #ff6a26;
+}
+
+.rating-star {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.rating-count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .underline-animated {
@@ -651,16 +739,35 @@ body {
 }
 
 .inline-icon {
-  width: 1em;
-  height: 1em;
-  vertical-align: middle;
-  margin: 0 0.15em;
+  --inline-icon-size: 1.1em;
+  width: var(--inline-icon-size);
+  height: var(--inline-icon-size);
+  vertical-align: -0.18em;
+  margin: 0 0.18em;
   color: #ff6a26;
   display: inline-block;
 }
 
+.inline-photo {
+  width: auto;
+  border-radius: 0.45em;
+  object-fit: cover;
+}
+
+.inline-photo--wide {
+  width: calc(var(--inline-icon-size) * 2);
+}
+
+.inline-photo--square {
+  width: var(--inline-icon-size);
+}
+
+.inline-photo--34 {
+  width: calc(var(--inline-icon-size) * 0.75);
+}
+
 .section-subtitle {
-  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
   color: rgba(255, 255, 255, 0.7);
   line-height: 1.8;
   max-width: 700px;
@@ -723,7 +830,7 @@ body {
 
 .feature-title {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 20px;
   color: #ff8c5a;
 }
@@ -754,7 +861,7 @@ body {
 
 .feature-list li strong {
   color: #ff8c5a;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .capsule-section {
@@ -876,7 +983,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.92);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
   box-shadow:
@@ -921,6 +1028,10 @@ body {
   background: transparent;
 }
 
+.bento-section .container {
+  max-width: 980px;
+}
+
 .bento-grid {
   position: relative;
   display: grid;
@@ -932,15 +1043,17 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 240px;
+  min-height: 300px;
   padding: 28px 28px 84px;
   border-radius: 24px;
+  --bento-x: 50%;
+  --bento-y: 50%;
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.05),
     rgba(255, 255, 255, 0.01)
   );
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
   overflow: hidden;
   transition:
@@ -954,7 +1067,7 @@ body {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    circle at 20% 20%,
+    circle at var(--bento-x, 20%) var(--bento-y, 20%),
     rgba(255, 106, 38, 0.2),
     transparent 60%
   );
@@ -981,7 +1094,7 @@ body {
 
 .bento-card--wide {
   grid-column: 1 / -1;
-  min-height: 260px;
+  min-height: 340px;
   padding: 32px 32px 92px;
 }
 
@@ -1010,13 +1123,13 @@ body {
 }
 
 .bento-title {
-  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
-  font-weight: 600;
+  font-size: clamp(1.4rem, 2.6vw, 2.2rem);
+  font-weight: 700;
   color: #ffffff;
 }
 
 .bento-card--wide .bento-title {
-  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
 }
 
 .bento-summary {
@@ -1059,6 +1172,9 @@ body {
   line-height: 1;
   color: inherit;
   transition: transform 0.25s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 .bento-card.active .bento-toggle-icon {
@@ -1109,8 +1225,8 @@ body {
 }
 
 .bento-overlay-title {
-  font-size: clamp(1.3rem, 2.4vw, 1.8rem);
-  font-weight: 600;
+  font-size: clamp(1.4rem, 2.6vw, 2.4rem);
+  font-weight: 700;
 }
 
 .bento-overlay-text {
@@ -1361,7 +1477,7 @@ body {
   }
 
   .hero-quote {
-    font-size: clamp(1.2rem, 5vw, 2rem);
+    font-size: clamp(1.2rem, 4.8vw, 2.1rem);
   }
 
   .feature-card {
@@ -1456,9 +1572,8 @@ body {
 }
 
 @media (max-width: 768px) {
-  .hero-quote,
   .section-title {
-    font-size: clamp(1.8rem, 7vw, 4.5rem);
+    font-size: clamp(2rem, 7.5vw, 5rem);
   }
 
   .section-subtitle {
@@ -1469,6 +1584,32 @@ body {
   .feature-text-content {
     white-space: nowrap;
     width: 100%;
+  }
+
+  .feature-rating {
+    gap: 8px;
+  }
+
+  .review-quote {
+    font-size: 0.95rem;
+  }
+
+  .review-author {
+    font-size: 0.85rem;
+  }
+
+  .rating-row {
+    padding: 0;
+    gap: 6px;
+  }
+
+  .rating-star {
+    width: 12px;
+    height: 12px;
+  }
+
+  .rating-count {
+    font-size: 0.78rem;
   }
 
   .scroll-indicator {

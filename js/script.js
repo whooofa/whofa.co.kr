@@ -144,22 +144,13 @@ document.addEventListener("DOMContentLoaded", () => {
         hero.totalSlides - 1,
       );
 
-      if (isMobile()) {
-        if (hero.lastActiveIndex !== activeDot) {
-          hero.heroTexts.forEach((text, i) =>
-            text.classList.toggle("active", i === activeDot),
-          );
-          hero.lastActiveIndex = activeDot;
-        }
-        if (hero.textFlow.scrollTop !== 0) {
-          hero.textFlow.scrollTop = 0;
-        }
-      } else {
-        hero.textFlow.scrollTop = textProgress * textFlowScrollHeight;
-        if (hero.lastActiveIndex !== -1) {
-          hero.heroTexts.forEach((text) => text.classList.remove("active"));
-          hero.lastActiveIndex = -1;
-        }
+      const targetScrollTop = textProgress * textFlowScrollHeight;
+      if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
+        hero.textFlow.scrollTop = targetScrollTop;
+      }
+      if (hero.lastActiveIndex !== -1) {
+        hero.heroTexts.forEach((text) => text.classList.remove("active"));
+        hero.lastActiveIndex = -1;
       }
 
       hero.dots.forEach((dot, i) =>
@@ -703,6 +694,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const toggle = card.querySelector(".bento-toggle");
     const overlay = card.querySelector(".bento-overlay");
     if (!toggle || !overlay) return;
+
+    let rafId = null;
+    let pendingPos = null;
+    let resetTimer = null;
+
+    const updateGradient = () => {
+      rafId = null;
+      if (!pendingPos) return;
+      const { x, y } = pendingPos;
+      card.style.setProperty("--bento-x", `${x}%`);
+      card.style.setProperty("--bento-y", `${y}%`);
+      pendingPos = null;
+    };
+
+    const queueGradientUpdate = (event) => {
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+        resetTimer = null;
+      }
+      const rect = card.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      pendingPos = {
+        x: Math.min(Math.max(x, 0), 100),
+        y: Math.min(Math.max(y, 0), 100),
+      };
+      if (!rafId) {
+        rafId = requestAnimationFrame(updateGradient);
+      }
+    };
+
+    const resetGradient = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      pendingPos = null;
+      if (resetTimer) clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => {
+        card.style.setProperty("--bento-x", "50%");
+        card.style.setProperty("--bento-y", "50%");
+        resetTimer = null;
+      }, 320);
+    };
+
+    card.addEventListener("pointerenter", queueGradientUpdate);
+    card.addEventListener("pointermove", queueGradientUpdate);
+    card.addEventListener("pointerleave", resetGradient);
+    card.addEventListener("pointerdown", queueGradientUpdate);
 
     toggle.addEventListener("click", () => {
       const isActive = card.classList.toggle("active");
