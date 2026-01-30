@@ -264,6 +264,7 @@ body {
   z-index: 1;
   background: #0a0a0a;
   border-radius: 32px;
+  overflow: hidden;
   will-change: opacity;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -283,14 +284,29 @@ body {
   visibility: hidden;
 }
 
-.video-container img {
+.video-container .hero-media {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.8s ease;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+.video-container .hero-media.is-active {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-container .hero-media {
+    transition: none;
+  }
 }
 
 .video-overlay {
@@ -299,12 +315,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.3) 0%,
-    rgba(0, 0, 0, 0.45) 50%,
-    rgba(0, 0, 0, 0.6) 100%
-  );
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .video-container::before {

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
@@ -129,13 +129,24 @@
       </div>
     </nav>
 
-    <section class="hero-section">
+    <section
+      class="hero-section"
+      data-hero-media="assets/videos/hero1.webp, assets/videos/hero2.webp, assets/videos/hero3.webp, assets/videos/hero4.webp"
+    >
       <div class="hero-sticky">
         <div class="video-container">
           <img
-            src="assets/videos/hero_video.webp"
-            alt="Hero Video"
-            id="hero-video"
+            src="assets/videos/hero1.webp"
+            alt=""
+            class="hero-media is-active"
+            aria-hidden="true"
+            draggable="false"
+          />
+          <img
+            src="assets/videos/hero2.webp"
+            alt=""
+            class="hero-media"
+            aria-hidden="true"
             draggable="false"
           />
           <div class="video-overlay"></div>
@@ -291,12 +302,24 @@
           </div>
         </div>
 
-        <section class="hero-section hero-section-secondary">
+        <section
+          class="hero-section hero-section-secondary"
+          data-hero-media="assets/videos/hero5.webp, assets/videos/hero6.webp"
+        >
           <div class="hero-sticky">
             <div class="video-container">
               <img
-                src="assets/videos/hero_video.webp"
-                alt="Hero Video"
+                src="assets/videos/hero5.webp"
+                alt=""
+                class="hero-media is-active"
+                aria-hidden="true"
+                draggable="false"
+              />
+              <img
+                src="assets/videos/hero6.webp"
+                alt=""
+                class="hero-media"
+                aria-hidden="true"
                 draggable="false"
               />
               <div class="video-overlay"></div>
@@ -689,3 +712,4 @@
     <script src="js/script.js"></script>
   </body>
 </html>
+

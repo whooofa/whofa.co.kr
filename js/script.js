@@ -1,16 +1,50 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const parseHeroMediaSources = (section) => {
+    const sources = section?.dataset?.heroMedia;
+    if (!sources) return [];
+    return sources
+      .split(",")
+      .map((source) => source.trim())
+      .filter(Boolean);
+  };
+
   const heroSections = Array.from(document.querySelectorAll(".hero-section"));
   const heroContexts = heroSections.map((section) => {
     const heroTexts = section.querySelectorAll(".hero-text");
+    const videoContainer = section.querySelector(".video-container");
+    const mediaSources = parseHeroMediaSources(section);
+    const mediaSlots = Array.from(
+      videoContainer?.querySelectorAll(".hero-media") ?? [],
+    );
+    const activeSlotIndex = mediaSlots.findIndex((slot) =>
+      slot.classList.contains("is-active"),
+    );
+    const activeMediaSlot = activeSlotIndex === -1 ? 0 : activeSlotIndex;
+    const initialMediaIndex =
+      mediaSources.length && mediaSlots.length
+        ? mediaSources.indexOf(
+            mediaSlots[activeMediaSlot]?.getAttribute("src") || "",
+          )
+        : -1;
     return {
       section,
       sticky: section.querySelector(".hero-sticky"),
-      videoContainer: section.querySelector(".video-container"),
+      videoContainer,
       textFlow: section.querySelector(".hero-text-flow"),
       heroTexts,
       dots: section.querySelectorAll(".dot"),
       totalSlides: heroTexts.length,
       isSecondary: section.classList.contains("hero-section-secondary"),
+      mediaSources,
+      mediaSlots,
+      activeMediaSlot,
+      currentMediaIndex:
+        initialMediaIndex >= 0
+          ? initialMediaIndex
+          : mediaSources.length
+            ? 0
+            : -1,
+      pendingMediaIndex: null,
       lastOpacity: -1,
       lastScale: -1,
       lastProgress: -1,
@@ -22,6 +56,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const primaryHero = heroContexts.find((hero) => !hero.isSecondary) || null;
   const secondaryHero = heroContexts.find((hero) => hero.isSecondary) || null;
   const clamp01 = (value) => Math.min(Math.max(value, 0), 1);
+
+  const preloadHeroMedia = (sources) => {
+    sources.forEach((src) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = src;
+    });
+  };
+
+  heroContexts.forEach((hero) => {
+    if (hero.mediaSources?.length) preloadHeroMedia(hero.mediaSources);
+  });
 
   let isLowPowerMode = false;
   let frameSkipCounter = 0;
@@ -124,6 +170,47 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   };
 
+  const swapHeroMedia = (hero, targetIndex) => {
+    if (!hero || !hero.mediaSources?.length) return;
+    if (!hero.mediaSlots || hero.mediaSlots.length < 2) return;
+
+    const maxIndex = hero.mediaSources.length - 1;
+    const clampedIndex = Math.min(Math.max(targetIndex, 0), maxIndex);
+    if (clampedIndex === hero.currentMediaIndex) return;
+
+    const nextSlot = hero.activeMediaSlot === 0 ? 1 : 0;
+    const nextImg = hero.mediaSlots[nextSlot];
+    const currentImg = hero.mediaSlots[hero.activeMediaSlot];
+    if (!nextImg || !currentImg) return;
+
+    const nextSrc = hero.mediaSources[clampedIndex];
+    hero.pendingMediaIndex = clampedIndex;
+
+    if (nextImg.getAttribute("data-src") !== nextSrc) {
+      nextImg.setAttribute("data-src", nextSrc);
+      nextImg.src = nextSrc;
+    }
+
+    const finalizeSwap = () => {
+      if (hero.pendingMediaIndex !== clampedIndex) return;
+      nextImg.classList.add("is-active");
+      currentImg.classList.remove("is-active");
+      hero.activeMediaSlot = nextSlot;
+      hero.currentMediaIndex = clampedIndex;
+      hero.pendingMediaIndex = null;
+    };
+
+    if (nextImg.complete && nextImg.naturalWidth > 0) {
+      finalizeSwap();
+    } else {
+      const onLoad = () => {
+        nextImg.removeEventListener("load", onLoad);
+        finalizeSwap();
+      };
+      nextImg.addEventListener("load", onLoad);
+    }
+  };
+
   function updateHeroByScroll(scrollYOverride) {
     if (!layoutCacheValid) updateLayoutCache();
     const viewportHeight = cachedViewportHeight || window.innerHeight;
@@ -148,9 +235,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
         hero.textFlow.scrollTop = targetScrollTop;
       }
-      if (hero.lastActiveIndex !== -1) {
-        hero.heroTexts.forEach((text) => text.classList.remove("active"));
-        hero.lastActiveIndex = -1;
+      if (hero.lastActiveIndex !== activeDot) {
+        swapHeroMedia(hero, activeDot);
+        hero.lastActiveIndex = activeDot;
       }
 
       hero.dots.forEach((dot, i) =>
