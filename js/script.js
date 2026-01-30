@@ -104,29 +104,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return window.scrollY;
   };
 
-  const pendingStyles = new Map();
-  let styleFlushScheduled = false;
-
-  const setOptimizedStyle = (element, property, value) => {
-    if (!pendingStyles.has(element)) {
-      pendingStyles.set(element, {});
-    }
-    pendingStyles.get(element)[property] = value;
-
-    if (!styleFlushScheduled) {
-      styleFlushScheduled = true;
-      requestAnimationFrame(flushStyles);
-    }
-  };
-
-  const flushStyles = () => {
-    pendingStyles.forEach((styles, element) => {
-      Object.assign(element.style, styles);
-    });
-    pendingStyles.clear();
-    styleFlushScheduled = false;
-  };
-
   const getHeroMetrics = (hero, viewportHeight, scrollY) => {
     const heroHeight = hero.sectionHeight ?? hero.section.offsetHeight;
     const scrollableHeight =
@@ -238,6 +215,19 @@ document.addEventListener("DOMContentLoaded", () => {
       if (hero.lastActiveIndex !== activeDot) {
         swapHeroMedia(hero, activeDot);
         hero.lastActiveIndex = activeDot;
+
+        const activeText = hero.heroTexts[activeDot];
+        if (activeText && hero.section) {
+          const highlight = activeText.querySelector(".highlight");
+          const colorSource =
+            highlight || activeText.querySelector(".hero-quote") || activeText;
+          if (colorSource) {
+            const accentColor = getComputedStyle(colorSource).color;
+            if (accentColor) {
+              hero.section.style.setProperty("--hero-accent", accentColor);
+            }
+          }
+        }
       }
 
       hero.dots.forEach((dot, i) =>
@@ -839,26 +829,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   window.addEventListener("load", () => {
-    document.body.classList.add("loaded");
     layoutCacheValid = false;
     onScroll(getScrollY());
   });
-
-  const underlineElements = document.querySelectorAll(".underline-animated");
-  const underlineObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("animate");
-        } else {
-          entry.target.classList.remove("animate");
-        }
-      });
-    },
-    { threshold: 0.5 },
-  );
-
-  underlineElements.forEach((el) => underlineObserver.observe(el));
 
   heroContexts.forEach((hero) => {
     if (hero.sticky) {
@@ -878,5 +851,3 @@ document.addEventListener("DOMContentLoaded", () => {
   updateNavbarByScroll(initialScrollY);
   updateFeatureByScroll(initialScrollY);
 });
-
-document.body.classList.add("loading");
