@@ -262,7 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.requestAnimationFrame(() => {
       ticking = false;
       const scrollY = pendingScrollY;
-      if (Math.abs(scrollY - lastScrollY) < 1) return;
+      if (Math.abs(scrollY - lastScrollY) < 0.2) return;
       lastScrollY = scrollY;
       runScrollUpdates(scrollY);
     });
@@ -629,7 +629,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       const lastState = featureStateCache.get(textContent) || { progress: -1 };
-      if (Math.abs(scrollProgress - lastState.progress) < 0.01) return;
+      if (Math.abs(scrollProgress - lastState.progress) < 0.004) return;
 
       featureStateCache.set(textContent, { progress: scrollProgress });
 

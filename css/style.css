@@ -353,6 +353,8 @@ body {
 @media (max-width: 768px) {
   .hero-text-flow {
     overflow-y: scroll;
+    pointer-events: none;
+    touch-action: pan-y;
   }
 }
 
