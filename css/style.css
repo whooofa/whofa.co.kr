@@ -1067,6 +1067,17 @@ body {
   opacity: 1;
 }
 
+@media (hover: none), (pointer: coarse) {
+  .bento-card::after {
+    opacity: 0 !important;
+    background: none;
+  }
+
+  .bento-card:hover::after {
+    opacity: 0;
+  }
+}
+
 .bento-card.active {
   border-color: rgba(255, 106, 38, 0.6);
   box-shadow:

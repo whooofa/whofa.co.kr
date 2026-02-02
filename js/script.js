@@ -769,6 +769,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const finePointerQuery = window.matchMedia(
     "(hover: hover) and (pointer: fine)"
   );
+  const coarsePointerQuery = window.matchMedia(
+    "(hover: none), (pointer: coarse)"
+  );
   const bentoCards = document.querySelectorAll(".bento-card");
   bentoCards.forEach((card) => {
     const toggle = card.querySelector(".bento-toggle");
@@ -799,6 +802,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const queuePointerUpdate = (event) => {
+      if (coarsePointerQuery.matches || event.pointerType === "touch") return;
       if (resetTimer) {
         clearTimeout(resetTimer);
         resetTimer = null;
@@ -832,6 +836,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const queueGradientUpdate = (event) => {
+      if (coarsePointerQuery.matches || event.pointerType === "touch") return;
       if (isMediaEvent(event)) return;
       if (resetTimer) {
         clearTimeout(resetTimer);
@@ -893,19 +898,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isPreplay) {
       const preplayTarget =
         card.querySelector(".bento-media--preplay") || pointerTarget;
-      const revealOn = (event) => {
-        if (event.pointerType !== "touch") return;
-        card.classList.add("is-reveal");
-      };
-      const revealOff = (event) => {
-        if (event.pointerType !== "touch") return;
-        card.classList.remove("is-reveal");
+      const toggleReveal = () => {
+        if (!coarsePointerQuery.matches) return;
+        card.classList.toggle("is-reveal");
       };
 
-      preplayTarget.addEventListener("pointerdown", revealOn);
-      preplayTarget.addEventListener("pointerup", revealOff);
-      preplayTarget.addEventListener("pointercancel", revealOff);
-      preplayTarget.addEventListener("pointerleave", revealOff);
+      preplayTarget.addEventListener("click", toggleReveal);
     }
 
     toggle.addEventListener("click", () => {
