@@ -420,16 +420,34 @@
       <section class="bento-section" id="app-summary">
         <div class="container">
           <div class="bento-grid">
-            <article class="bento-card bento-card--wide">
-              <div class="bento-content">
-                <span class="bento-kicker bento-kicker--strong"
-                  >블라인드 프리플레이</span
-                >
-                <h3 class="bento-title">
-                  <span class="bento-title-emphasis"
-                    >음악을 발견하는<br />새로운 방식</span
+            <article class="bento-card bento-card--wide bento-card--preplay">
+              <div class="bento-content bento-content--split">
+                <div class="bento-copy">
+                  <span class="bento-kicker bento-kicker--strong"
+                    >블라인드 프리플레이</span
                   >
-                </h3>
+                  <h3 class="bento-title">
+                    <span class="bento-title-emphasis"
+                      >음악을 발견하는<br />새로운 방식</span
+                    >
+                  </h3>
+                </div>
+                <div class="bento-media bento-media--preplay">
+                  <img
+                    src="assets/images/preplay_bento_blind.webp"
+                    alt="블라인드 프리플레이 화면"
+                    class="bento-image bento-image--blind"
+                    loading="lazy"
+                    draggable="false"
+                  />
+                  <img
+                    src="assets/images/preplay_bento_reveal.webp"
+                    alt="프리플레이 곡 정보 공개 화면"
+                    class="bento-image bento-image--reveal"
+                    loading="lazy"
+                    draggable="false"
+                  />
+                </div>
               </div>
               <div class="bento-overlay" id="bento-detail-1" aria-hidden="true">
                 <div class="bento-overlay-content">
@@ -452,13 +470,22 @@
               </button>
             </article>
 
-            <article class="bento-card">
+            <article class="bento-card bento-card--profile">
               <div class="bento-content">
                 <h3 class="bento-title">블록으로 완성하는 뮤지션 프로필</h3>
                 <p class="bento-summary">
                   음악, 이미지, 영상, 일정, 팬레터를 한 링크에 담아 소개할 수
                   있어요.
                 </p>
+                <div class="bento-media">
+                  <img
+                    src="assets/images/profile_bento.webp"
+                    alt="뮤지션 프로필 블록 구성 화면"
+                    class="bento-image"
+                    loading="lazy"
+                    draggable="false"
+                  />
+                </div>
               </div>
               <div class="bento-overlay" id="bento-detail-2" aria-hidden="true">
                 <div class="bento-overlay-content">
@@ -480,13 +507,22 @@
               </button>
             </article>
 
-            <article class="bento-card">
+            <article class="bento-card bento-card--audio">
               <div class="bento-content">
                 <h3 class="bento-title">하이라이트 편집과 가사 관리</h3>
                 <p class="bento-summary">
                   음원을 올리고 하이라이트를 자른 뒤 가사를 직접 정리할 수
                   있어요.
                 </p>
+                <div class="bento-media">
+                  <img
+                    src="assets/images/audio_bento.webp"
+                    alt="하이라이트 편집과 가사 관리 화면"
+                    class="bento-image"
+                    loading="lazy"
+                    draggable="false"
+                  />
+                </div>
               </div>
               <div class="bento-overlay" id="bento-detail-3" aria-hidden="true">
                 <div class="bento-overlay-content">
@@ -511,18 +547,27 @@
               </button>
             </article>
 
-            <article class="bento-card">
+            <article class="bento-card bento-card--reward">
               <div class="bento-content">
-                <h3 class="bento-title">듣는 만큼 쌓이는 포인트</h3>
+                <h3 class="bento-title">듣고 받는 리워드</h3>
                 <p class="bento-summary">
-                  프리플레이를 끝까지 듣고 포인트를 적립해요.
+                  음악을 들으면 리워드로 교환할 수 있는 혜택이 쌓여요.
                 </p>
+                <div class="bento-media">
+                  <img
+                    src="assets/images/reward_bento.webp"
+                    alt="리워드 교환 화면"
+                    class="bento-image"
+                    loading="lazy"
+                    draggable="false"
+                  />
+                </div>
               </div>
               <div class="bento-overlay" id="bento-detail-4" aria-hidden="true">
                 <div class="bento-overlay-content">
-                  <h3 class="bento-overlay-title">포인트 보상과 교환</h3>
+                  <h3 class="bento-overlay-title">리워드 스토어 교환</h3>
                   <p class="bento-overlay-text">
-                    누적 포인트는 리워드 스토어에서 브랜드별 디지털 상품으로
+                    누적된 혜택을 리워드 스토어에서 브랜드별 디지털 상품으로
                     교환하고, 보유·사용 내역을 확인할 수 있어요.
                   </p>
                 </div>
@@ -538,12 +583,21 @@
               </button>
             </article>
 
-            <article class="bento-card">
+            <article class="bento-card bento-card--community">
               <div class="bento-content">
                 <h3 class="bento-title">소리로 이어지는 커뮤니티</h3>
                 <p class="bento-summary">
                   텍스트부터 이미지·영상·오디오까지 자유롭게 공유할 수 있어요.
                 </p>
+                <div class="bento-media">
+                  <img
+                    src="assets/images/community_bento.webp"
+                    alt="커뮤니티 피드 화면"
+                    class="bento-image"
+                    loading="lazy"
+                    draggable="false"
+                  />
+                </div>
               </div>
               <div class="bento-overlay" id="bento-detail-5" aria-hidden="true">
                 <div class="bento-overlay-content">

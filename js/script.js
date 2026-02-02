@@ -766,6 +766,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  const finePointerQuery = window.matchMedia(
+    "(hover: hover) and (pointer: fine)"
+  );
   const bentoCards = document.querySelectorAll(".bento-card");
   bentoCards.forEach((card) => {
     const toggle = card.querySelector(".bento-toggle");
@@ -775,17 +778,61 @@ document.addEventListener("DOMContentLoaded", () => {
     let rafId = null;
     let pendingPos = null;
     let resetTimer = null;
+    let tiltEnabled = false;
+    const isPreplay = card.classList.contains("bento-card--preplay");
+    const maxTilt = isPreplay ? 8 : 12;
+    const pointerTarget = card.querySelector(".bento-media") || card;
+    const isMediaEvent = (event) =>
+      Boolean(event.target && event.target.closest(".bento-media"));
 
-    const updateGradient = () => {
+    const updatePointerEffects = () => {
       rafId = null;
       if (!pendingPos) return;
-      const { x, y } = pendingPos;
+      const { x, y, tiltX, tiltY, hasTilt } = pendingPos;
       card.style.setProperty("--bento-x", `${x}%`);
       card.style.setProperty("--bento-y", `${y}%`);
+      if (hasTilt) {
+        card.style.setProperty("--bento-tilt-x", `${tiltX.toFixed(2)}deg`);
+        card.style.setProperty("--bento-tilt-y", `${tiltY.toFixed(2)}deg`);
+      }
       pendingPos = null;
     };
 
+    const queuePointerUpdate = (event) => {
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+        resetTimer = null;
+      }
+      const cardRect = card.getBoundingClientRect();
+      const x = ((event.clientX - cardRect.left) / cardRect.width) * 100;
+      const y = ((event.clientY - cardRect.top) / cardRect.height) * 100;
+      tiltEnabled =
+        finePointerQuery.matches && event.pointerType !== "touch";
+      let tiltX = 0;
+      let tiltY = 0;
+      if (tiltEnabled) {
+        const tiltRect = pointerTarget.getBoundingClientRect();
+        const localX =
+          ((event.clientX - tiltRect.left) / tiltRect.width) * 100;
+        const localY =
+          ((event.clientY - tiltRect.top) / tiltRect.height) * 100;
+        tiltX = ((50 - localY) / 50) * maxTilt;
+        tiltY = ((localX - 50) / 50) * maxTilt;
+      }
+      pendingPos = {
+        x: Math.min(Math.max(x, 0), 100),
+        y: Math.min(Math.max(y, 0), 100),
+        tiltX,
+        tiltY,
+        hasTilt: tiltEnabled,
+      };
+      if (!rafId) {
+        rafId = requestAnimationFrame(updatePointerEffects);
+      }
+    };
+
     const queueGradientUpdate = (event) => {
+      if (isMediaEvent(event)) return;
       if (resetTimer) {
         clearTimeout(resetTimer);
         resetTimer = null;
@@ -796,18 +843,25 @@ document.addEventListener("DOMContentLoaded", () => {
       pendingPos = {
         x: Math.min(Math.max(x, 0), 100),
         y: Math.min(Math.max(y, 0), 100),
+        tiltX: 0,
+        tiltY: 0,
+        hasTilt: false,
       };
+      tiltEnabled = false;
       if (!rafId) {
-        rafId = requestAnimationFrame(updateGradient);
+        rafId = requestAnimationFrame(updatePointerEffects);
       }
     };
 
-    const resetGradient = () => {
+    const resetPointerEffects = () => {
       if (rafId) {
         cancelAnimationFrame(rafId);
         rafId = null;
       }
       pendingPos = null;
+      tiltEnabled = false;
+      card.style.setProperty("--bento-tilt-x", "0deg");
+      card.style.setProperty("--bento-tilt-y", "0deg");
       if (resetTimer) clearTimeout(resetTimer);
       resetTimer = window.setTimeout(() => {
         card.style.setProperty("--bento-x", "50%");
@@ -816,10 +870,43 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 320);
     };
 
+    const resetTiltOnly = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      pendingPos = null;
+      tiltEnabled = false;
+      card.style.setProperty("--bento-tilt-x", "0deg");
+      card.style.setProperty("--bento-tilt-y", "0deg");
+    };
+
+    pointerTarget.addEventListener("pointerenter", queuePointerUpdate);
+    pointerTarget.addEventListener("pointermove", queuePointerUpdate);
+    pointerTarget.addEventListener("pointerleave", resetTiltOnly);
+    pointerTarget.addEventListener("pointerdown", queuePointerUpdate);
+
     card.addEventListener("pointerenter", queueGradientUpdate);
     card.addEventListener("pointermove", queueGradientUpdate);
-    card.addEventListener("pointerleave", resetGradient);
-    card.addEventListener("pointerdown", queueGradientUpdate);
+    card.addEventListener("pointerleave", resetPointerEffects);
+
+    if (isPreplay) {
+      const preplayTarget =
+        card.querySelector(".bento-media--preplay") || pointerTarget;
+      const revealOn = (event) => {
+        if (event.pointerType !== "touch") return;
+        card.classList.add("is-reveal");
+      };
+      const revealOff = (event) => {
+        if (event.pointerType !== "touch") return;
+        card.classList.remove("is-reveal");
+      };
+
+      preplayTarget.addEventListener("pointerdown", revealOn);
+      preplayTarget.addEventListener("pointerup", revealOff);
+      preplayTarget.addEventListener("pointercancel", revealOff);
+      preplayTarget.addEventListener("pointerleave", revealOff);
+    }
 
     toggle.addEventListener("click", () => {
       const isActive = card.classList.toggle("active");
