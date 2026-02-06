@@ -790,6 +790,8 @@ document.addEventListener("DOMContentLoaded", () => {
       card.style.setProperty("--top-toggle-x", `${midpoint}px`);
     });
   };
+  updateTopBentoToggle();
+  requestAnimationFrame(updateTopBentoToggle);
   bentoCards.forEach((card) => {
     const toggle = card.querySelector(".bento-toggle");
     const overlay = card.querySelector(".bento-overlay");
