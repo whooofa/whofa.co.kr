@@ -577,7 +577,10 @@ body {
   left: 4.5%;
   width: 91.2%;
   height: 96.3%;
+  object-fit: cover;
+  object-position: center;
   border-radius: 4%;
+  background-color: #000;
   z-index: 1;
   user-select: none;
   -webkit-user-select: none;

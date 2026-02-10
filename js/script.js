@@ -69,6 +69,86 @@ document.addEventListener("DOMContentLoaded", () => {
     if (hero.mediaSources?.length) preloadHeroMedia(hero.mediaSources);
   });
 
+  const initPhoneLoopPreviews = () => {
+    const loopVideos = Array.from(
+      document.querySelectorAll(".phone-screenshot-video"),
+    );
+    if (!loopVideos.length) return;
+
+    const fallbackToImage = (video) => {
+      if (!video?.isConnected) return;
+      const fallbackSrc =
+        video.dataset.fallbackSrc || video.getAttribute("poster");
+      if (!fallbackSrc) return;
+
+      const img = document.createElement("img");
+      img.src = fallbackSrc;
+      img.alt = video.dataset.fallbackAlt || "App Screenshot";
+      img.className = Array.from(video.classList)
+        .filter((className) => className !== "phone-screenshot-video")
+        .join(" ");
+      if (!img.classList.contains("phone-screenshot")) {
+        img.classList.add("phone-screenshot");
+      }
+      img.draggable = false;
+      img.loading = "lazy";
+      img.decoding = "async";
+      video.replaceWith(img);
+    };
+
+    const tryAutoplay = (video) => {
+      if (!video || video.dataset.autoplayTried === "true") return;
+      video.dataset.autoplayTried = "true";
+      video.muted = true;
+
+      let playPromise;
+      try {
+        playPromise = video.play();
+      } catch (error) {
+        fallbackToImage(video);
+        return;
+      }
+
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {
+          fallbackToImage(video);
+        });
+      }
+    };
+
+    loopVideos.forEach((video) => {
+      video.addEventListener(
+        "error",
+        () => {
+          fallbackToImage(video);
+        },
+        { once: true },
+      );
+    });
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const video = entry.target;
+            observer.unobserve(video);
+            tryAutoplay(video);
+          });
+        },
+        { threshold: 0.2 },
+      );
+
+      loopVideos.forEach((video) => observer.observe(video));
+    } else {
+      loopVideos.forEach((video) => {
+        tryAutoplay(video);
+      });
+    }
+  };
+
+  initPhoneLoopPreviews();
+
   let isLowPowerMode = false;
   let frameSkipCounter = 0;
   const FRAME_SKIP_THRESHOLD = 2;
