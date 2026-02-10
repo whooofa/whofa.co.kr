@@ -1098,7 +1098,7 @@ body {
 .bento-grid > .bento-card--wide:first-child {
   min-height: 580px;
   justify-content: center;
-  padding: 0 32px 32px;
+  padding: 32px 32px 0;
 }
 
 .bento-grid > .bento-card--wide:first-child .bento-content {
@@ -1106,12 +1106,7 @@ body {
 }
 
 .bento-grid > .bento-card--wide:first-child .bento-media {
-  align-self: flex-start;
-}
-
-.bento-card--top .bento-media {
-  margin-top: 0;
-  align-self: flex-start;
+  align-self: flex-end;
 }
 
 .bento-grid > .bento-card--wide:first-child .bento-kicker {
@@ -1231,6 +1226,30 @@ body {
   margin-bottom: 0;
   --bento-shift-x: 0%;
   --bento-shift-y: 0%;
+}
+
+.bento-card.bento-card--top .bento-content--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  column-gap: 28px;
+  align-items: stretch;
+  height: 100%;
+}
+
+.bento-card.bento-card--top .bento-content {
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.bento-card.bento-card--top .bento-copy {
+  align-self: center;
+}
+
+.bento-card.bento-card--top .bento-media {
+  margin-top: 0;
+  margin-bottom: 0;
+  align-self: flex-end;
+  justify-self: end;
 }
 
 .bento-grid > .bento-card:not(:first-child) .bento-media {
@@ -1690,7 +1709,7 @@ body {
 
   .bento-grid > .bento-card--wide:first-child {
     min-height: 400px;
-    padding: 24px;
+    padding: 24px 24px 0;
   }
 
   .bento-grid > .bento-card--wide:first-child .bento-content {
@@ -1703,12 +1722,25 @@ body {
     gap: 20px;
   }
 
+  .bento-card.bento-card--top .bento-content--split {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
   .bento-media {
     max-width: 100%;
   }
 
   .bento-content--split .bento-media {
     max-width: 100%;
+  }
+
+  .bento-card.bento-card--top .bento-media {
+    margin-top: auto;
+    align-self: flex-start;
   }
 
   .bento-grid > .bento-card:not(:first-child) .bento-media {
