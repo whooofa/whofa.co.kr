@@ -431,12 +431,21 @@
                 class="phone-frame"
                 draggable="false"
               />
-              <img
-                src="assets/videos/profile_video.webp"
-                alt="App Screenshot"
-                class="phone-screenshot"
+              <video
+                class="phone-screenshot phone-screenshot-video"
+                autoplay
+                muted
+                loop
+                playsinline
+                webkit-playsinline
+                preload="metadata"
+                poster="assets/videos/profile_video.webp"
+                data-fallback-src="assets/videos/profile_video.webp"
+                data-fallback-alt="App Screenshot"
                 draggable="false"
-              />
+              >
+                <source src="assets/videos/profile_video.mp4" type="video/mp4" />
+              </video>
             </div>
           </div>
         </div>
