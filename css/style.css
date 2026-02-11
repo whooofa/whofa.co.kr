@@ -323,8 +323,20 @@ body {
   overflow-x: hidden;
   -ms-overflow-style: none;
   scrollbar-width: none;
-  -webkit-mask-image: none;
-  mask-image: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   contain: layout style;
@@ -577,7 +589,10 @@ body {
   left: 4.5%;
   width: 91.2%;
   height: 96.3%;
+  object-fit: cover;
+  object-position: center;
   border-radius: 4%;
+  background-color: #000;
   z-index: 1;
   user-select: none;
   -webkit-user-select: none;
