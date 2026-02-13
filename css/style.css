@@ -695,22 +695,39 @@ body {
 }
 
 .section-title--meet .meet-line:nth-of-type(1) {
-  letter-spacing: 0.01em;
-  padding-right: 0.15em;
+  letter-spacing: 0em;
+  padding-right: 0.3em;
 }
 
 .section-title--meet .meet-line:nth-of-type(2) {
-  letter-spacing: 0.14em;
-  padding-left: 0.5em;
+  letter-spacing: 0.15em;
+  padding-left: 0.4em;
 }
 
 .section-title--meet .meet-line:nth-of-type(3) {
-  letter-spacing: 0.125em;
+  letter-spacing: 0.23em;
 }
 
 .section-title--meet .meet-line:nth-of-type(4) {
-  letter-spacing: 0.17em;
+  letter-spacing: 0.25em;
   padding-left: 0.5em;
+}
+
+.section-title--meet .inline-symbol--meet {
+  --inline-icon-size: 1em;
+  margin: 0 0.14em 0 0.16em;
+  vertical-align: -0.08em;
+  color: #ff6b2d;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.section-title--meet .inline-symbol--headset {
+  --inline-icon-size: 1.13em;
+  margin-left: -0.02em;
 }
 
 .section-title--meet .inline-photo--meet {
@@ -1882,19 +1899,27 @@ body {
   }
 
   .section-title--meet .meet-line:nth-of-type(1) {
-    letter-spacing: 0.01em;
+    letter-spacing: 0em;
   }
 
   .section-title--meet .meet-line:nth-of-type(2) {
-    letter-spacing: 0.14em;
+    letter-spacing: 0.15em;
   }
 
   .section-title--meet .meet-line:nth-of-type(3) {
-    letter-spacing: 0.125em;
+    letter-spacing: 0.23em;
   }
 
   .section-title--meet .meet-line:nth-of-type(4) {
-    letter-spacing: 0.17em;
+    letter-spacing: 0.25em;
+  }
+
+  .section-title--meet .inline-symbol--meet {
+    --inline-icon-size: 1em;
+  }
+
+  .section-title--meet .inline-symbol--headset {
+    --inline-icon-size: 1.13em;
   }
 
   .section-title--meet .inline-photo--meet {
