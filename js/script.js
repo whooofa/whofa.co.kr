@@ -149,6 +149,55 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initPhoneLoopPreviews();
 
+  const initHeroWordSwap = () => {
+    const verbNode = document.querySelector('[data-hero-swap="verb"]');
+    const targetNode = document.querySelector('[data-hero-swap="target"]');
+    const sentenceNode = document.querySelector(".swap-line");
+    if (!verbNode || !targetNode || !sentenceNode) return;
+
+    const states = [
+      { verb: "Build", target: "music" },
+      { verb: "Blind", target: "music" },
+      { verb: "Build", target: "career" },
+    ];
+    let stateIndex = 0;
+    const reduceMotionRequested = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    const updateAriaLabel = (state) => {
+      sentenceNode.setAttribute(
+        "aria-label",
+        `${state.verb} your ${state.target}.`,
+      );
+    };
+
+    const swapWord = (node, nextValue) => {
+      if (!node || node.textContent === nextValue) return;
+      if (reduceMotionRequested) {
+        node.textContent = nextValue;
+        return;
+      }
+
+      node.classList.add("is-swapping");
+      window.setTimeout(() => {
+        node.textContent = nextValue;
+        node.classList.remove("is-swapping");
+      }, 140);
+    };
+
+    updateAriaLabel(states[stateIndex]);
+    window.setInterval(() => {
+      stateIndex = (stateIndex + 1) % states.length;
+      const nextState = states[stateIndex];
+      swapWord(verbNode, nextState.verb);
+      swapWord(targetNode, nextState.target);
+      updateAriaLabel(nextState);
+    }, reduceMotionRequested ? 2200 : 1800);
+  };
+
+  initHeroWordSwap();
+
   let isLowPowerMode = false;
   let frameSkipCounter = 0;
   const FRAME_SKIP_THRESHOLD = 2;

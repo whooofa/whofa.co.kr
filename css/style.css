@@ -375,7 +375,7 @@ body {
 }
 
 .hero-quote {
-  font-size: clamp(2.2rem, 5.2vw, 4.5rem);
+  font-size: clamp(1.8rem, 4.2vw, 3.8rem);
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -384,6 +384,27 @@ body {
   white-space: nowrap;
   user-select: text;
   -webkit-user-select: text;
+}
+
+.hero-quote--word-swap {
+  white-space: normal;
+}
+
+.swap-line {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.swap-word {
+  display: inline-block;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+
+.swap-word.is-swapping {
+  opacity: 0;
+  transform: translateY(0.22em);
 }
 
 .hero-quote .highlight {
@@ -651,6 +672,51 @@ body {
   line-height: 1.3;
   margin-bottom: 30px;
   color: #ffffff;
+}
+
+.section-title-note {
+  display: block;
+  margin-top: 0.42em;
+  font-size: clamp(1rem, 1.9vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.section-title--meet {
+  font-size: clamp(1.87rem, 3.96vw, 3.36rem);
+  line-height: 1.28;
+}
+
+.section-title--meet .meet-line {
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.section-title--meet .meet-line:nth-of-type(1) {
+  letter-spacing: 0.01em;
+  padding-right: 0.15em;
+}
+
+.section-title--meet .meet-line:nth-of-type(2) {
+  letter-spacing: 0.14em;
+  padding-left: 0.5em;
+}
+
+.section-title--meet .meet-line:nth-of-type(3) {
+  letter-spacing: 0.125em;
+}
+
+.section-title--meet .meet-line:nth-of-type(4) {
+  letter-spacing: 0.17em;
+  padding-left: 0.5em;
+}
+
+.section-title--meet .inline-photo--meet {
+  width: 1.9em;
+  margin: 0 0.16em;
+  vertical-align: -0.15em;
 }
 
 .text-orange {
@@ -1085,7 +1151,6 @@ body {
 .bento-card:hover::after {
   opacity: 1;
 }
-
 
 @media (hover: none), (pointer: coarse) {
   .bento-card::after {
@@ -1669,7 +1734,7 @@ body {
   }
 
   .hero-quote {
-    font-size: clamp(2rem, 7.5vw, 5rem);
+    font-size: clamp(1.55rem, 6.1vw, 3.5rem);
   }
 
   .feature-card {
@@ -1808,6 +1873,34 @@ body {
     font-size: clamp(2rem, 7.5vw, 5rem);
   }
 
+  .section-title-note {
+    font-size: clamp(0.95rem, 3.2vw, 1.2rem);
+  }
+
+  .section-title--meet {
+    font-size: clamp(1.49rem, 5.83vw, 2.59rem);
+  }
+
+  .section-title--meet .meet-line:nth-of-type(1) {
+    letter-spacing: 0.08em;
+  }
+
+  .section-title--meet .meet-line:nth-of-type(2) {
+    letter-spacing: 0.022em;
+  }
+
+  .section-title--meet .meet-line:nth-of-type(3) {
+    letter-spacing: 0.04em;
+  }
+
+  .section-title--meet .meet-line:nth-of-type(4) {
+    letter-spacing: 0.07em;
+  }
+
+  .section-title--meet .inline-photo--meet {
+    width: 1.32em;
+  }
+
   .section-title--balanced {
     gap: 0.08em;
   }
@@ -1885,5 +1978,9 @@ body {
   .capsule-row {
     animation: none;
     transform: translateX(0);
+  }
+
+  .swap-word {
+    transition: none;
   }
 }
