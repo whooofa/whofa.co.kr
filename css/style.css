@@ -204,6 +204,10 @@ body {
   padding: 20px;
 }
 
+.hero-section:not(.hero-section-secondary) {
+  background: var(--intro-section-bg);
+}
+
 .hero-section-secondary {
   height: 300vh;
 }
