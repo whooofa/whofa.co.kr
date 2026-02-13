@@ -1882,23 +1882,23 @@ body {
   }
 
   .section-title--meet .meet-line:nth-of-type(1) {
-    letter-spacing: 0.08em;
+    letter-spacing: 0.01em;
   }
 
   .section-title--meet .meet-line:nth-of-type(2) {
-    letter-spacing: 0.022em;
+    letter-spacing: 0.14em;
   }
 
   .section-title--meet .meet-line:nth-of-type(3) {
-    letter-spacing: 0.04em;
+    letter-spacing: 0.125em;
   }
 
   .section-title--meet .meet-line:nth-of-type(4) {
-    letter-spacing: 0.07em;
+    letter-spacing: 0.17em;
   }
 
   .section-title--meet .inline-photo--meet {
-    width: 1.32em;
+    width: 1.9em;
   }
 
   .section-title--balanced {
