@@ -69,11 +69,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (hero.mediaSources?.length) preloadHeroMedia(hero.mediaSources);
   });
 
-  const initPhoneLoopPreviews = () => {
-    const loopVideos = Array.from(
-      document.querySelectorAll(".phone-screenshot-video"),
+  const initAutoplayFallbackVideos = () => {
+    const autoplayVideos = Array.from(
+      document.querySelectorAll("video[data-fallback-src]"),
     );
-    if (!loopVideos.length) return;
+    if (!autoplayVideos.length) return;
+
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
     const fallbackToImage = (video) => {
       if (!video?.isConnected) return;
@@ -85,13 +87,20 @@ document.addEventListener("DOMContentLoaded", () => {
       img.src = fallbackSrc;
       img.alt = video.dataset.fallbackAlt || "App Screenshot";
       img.className = Array.from(video.classList)
-        .filter((className) => className !== "phone-screenshot-video")
+        .filter(
+          (className) =>
+            className !== "phone-screenshot-video" &&
+            className !== "hero-media-video",
+        )
         .join(" ");
-      if (!img.classList.contains("phone-screenshot")) {
+      if (video.classList.contains("phone-screenshot")) {
         img.classList.add("phone-screenshot");
       }
+      if (video.classList.contains("hero-media")) {
+        img.classList.add("hero-media");
+      }
       img.draggable = false;
-      img.loading = "lazy";
+      img.loading = video.classList.contains("hero-media") ? "eager" : "lazy";
       img.decoding = "async";
       video.replaceWith(img);
     };
@@ -116,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    loopVideos.forEach((video) => {
+    autoplayVideos.forEach((video) => {
       video.addEventListener(
         "error",
         () => {
@@ -139,15 +148,21 @@ document.addEventListener("DOMContentLoaded", () => {
         { threshold: 0.2 },
       );
 
-      loopVideos.forEach((video) => observer.observe(video));
+      autoplayVideos.forEach((video) => {
+        if (isIOSDevice && video.classList.contains("hero-media-video")) {
+          tryAutoplay(video);
+          return;
+        }
+        observer.observe(video);
+      });
     } else {
-      loopVideos.forEach((video) => {
+      autoplayVideos.forEach((video) => {
         tryAutoplay(video);
       });
     }
   };
 
-  initPhoneLoopPreviews();
+  initAutoplayFallbackVideos();
 
   const initHeroWordSwap = () => {
     const verbNode = document.querySelector('[data-hero-swap="verb"]');

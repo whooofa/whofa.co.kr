@@ -131,26 +131,25 @@
       </div>
     </nav>
 
-    <section
-      class="hero-section"
-      data-hero-media="assets/videos/hero1.webp, assets/videos/hero2.webp, assets/videos/hero3.webp, assets/videos/hero4.webp"
-    >
+    <section class="hero-section">
       <div class="hero-sticky">
         <div class="video-container">
-          <img
-            src="assets/videos/hero1.webp"
-            alt=""
-            class="hero-media is-active"
+          <video
+            class="hero-media hero-media-video is-active"
+            autoplay
+            muted
+            loop
+            playsinline
+            webkit-playsinline
+            preload="metadata"
+            poster="assets/videos/hero_video.webp"
+            data-fallback-src="assets/videos/hero_video.webp"
+            data-fallback-alt="WHOFA Hero"
             aria-hidden="true"
             draggable="false"
-          />
-          <img
-            src="assets/videos/hero2.webp"
-            alt=""
-            class="hero-media"
-            aria-hidden="true"
-            draggable="false"
-          />
+          >
+            <source src="assets/videos/hero_video.mp4" type="video/mp4" />
+          </video>
           <div class="video-overlay"></div>
         </div>
 
@@ -325,26 +324,25 @@
           </div>
         </div>
 
-        <section
-          class="hero-section hero-section-secondary"
-          data-hero-media="assets/videos/hero4.webp, assets/videos/hero5.webp"
-        >
+        <section class="hero-section hero-section-secondary">
           <div class="hero-sticky">
             <div class="video-container">
-              <img
-                src="assets/videos/hero4.webp"
-                alt=""
-                class="hero-media is-active"
+              <video
+                class="hero-media hero-media-video is-active"
+                autoplay
+                muted
+                loop
+                playsinline
+                webkit-playsinline
+                preload="metadata"
+                poster="assets/videos/hero_video.webp"
+                data-fallback-src="assets/videos/hero_video.webp"
+                data-fallback-alt="WHOFA Hero"
                 aria-hidden="true"
                 draggable="false"
-              />
-              <img
-                src="assets/videos/hero5.webp"
-                alt=""
-                class="hero-media"
-                aria-hidden="true"
-                draggable="false"
-              />
+              >
+                <source src="assets/videos/hero_video.mp4" type="video/mp4" />
+              </video>
               <div class="video-overlay"></div>
             </div>
 
