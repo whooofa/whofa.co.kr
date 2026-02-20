@@ -365,6 +365,38 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const forwardWheelToPageScroll = (deltaY) => {
+    if (!Number.isFinite(deltaY) || Math.abs(deltaY) < 0.01) return;
+    const nextY = Math.max(window.scrollY + deltaY, 0);
+
+    if (lenis) {
+      lenis.scrollTo(nextY, {
+        immediate: true,
+        force: true,
+      });
+      return;
+    }
+
+    window.scrollTo({
+      top: nextY,
+      behavior: "auto",
+    });
+  };
+
+  heroContexts.forEach((hero) => {
+    const flow = hero.textFlow;
+    if (!flow) return;
+    flow.addEventListener(
+      "wheel",
+      (event) => {
+        if (!event || !Number.isFinite(event.deltaY)) return;
+        event.preventDefault();
+        forwardWheelToPageScroll(event.deltaY);
+      },
+      { passive: false },
+    );
+  });
+
   let ticking = false;
   let lastScrollY = -1;
   let pendingScrollY = -1;
@@ -413,6 +445,20 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     { passive: true },
   );
+
+  const startScrollPolling = () => {
+    let lastPolledScrollY = getScrollY();
+    const poll = () => {
+      const current = getScrollY();
+      if (Math.abs(current - lastPolledScrollY) > 0.1) {
+        lastPolledScrollY = current;
+        onScroll(current);
+      }
+      window.requestAnimationFrame(poll);
+    };
+    window.requestAnimationFrame(poll);
+  };
+  startScrollPolling();
 
   const primaryHeroSection = primaryHero?.section ?? null;
   const primaryHeroSticky = primaryHero?.sticky ?? null;
