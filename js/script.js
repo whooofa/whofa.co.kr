@@ -817,14 +817,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const padY = padYExpanded - (padYExpanded - padYOriginal) * eased;
       navbar.style.setProperty("--nav-pad-y", `${padY.toFixed(2)}px`);
 
-      const bgAlphaMax = 0.75;
+      const bgAlphaMax = 0.58;
       const bgAlpha = bgAlphaMax * eased;
       navbar.style.setProperty("--nav-bg-alpha", `${bgAlpha.toFixed(3)}`);
     } else if (navbar && isMobile()) {
       navbar.style.setProperty("--nav-pad-y", "18px");
+      const bgAlphaMax = 0.58;
       navbar.style.setProperty(
         "--nav-bg-alpha",
-        `${(0.75 * eased).toFixed(3)}`,
+        `${(bgAlphaMax * eased).toFixed(3)}`,
       );
     }
 
