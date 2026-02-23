@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const parseHeroMediaSources = (section) => {
-    const sources = section?.dataset?.heroMedia;
+  const parseCommaSeparatedDataset = (section, key) => {
+    const sources = section?.dataset?.[key];
     if (!sources) return [];
     return sources
       .split(",")
@@ -8,11 +8,51 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter(Boolean);
   };
 
+  const parseHeroMediaSources = (section) =>
+    parseCommaSeparatedDataset(section, "heroMedia");
+  const parseHeroFallbackSources = (section) =>
+    parseCommaSeparatedDataset(section, "heroMediaFallback");
+  const buildHeroFallbackSources = (mediaSources, fallbackSources) => {
+    if (fallbackSources.length === mediaSources.length) return fallbackSources;
+
+    return mediaSources.map(
+      (source, index) =>
+        fallbackSources[index] || source.replace(/\.mp4(?=$|\?)/i, ".webp"),
+    );
+  };
+  const getMediaSource = (mediaElement) => {
+    if (!mediaElement) return "";
+    const attrSrc = mediaElement.getAttribute("src");
+    if (attrSrc) return attrSrc;
+    if (mediaElement.tagName === "VIDEO") {
+      const sourceNode = mediaElement.querySelector("source");
+      if (sourceNode?.getAttribute("src")) return sourceNode.getAttribute("src");
+      if (mediaElement.currentSrc) return mediaElement.currentSrc;
+    }
+    return "";
+  };
+  const findMediaIndex = (sources, mediaSource) => {
+    if (!sources?.length || !mediaSource) return -1;
+
+    const normalizedSource = mediaSource.split("?")[0];
+    return sources.findIndex((source) => {
+      const normalizedCandidate = source.split("?")[0];
+      return (
+        normalizedSource === normalizedCandidate ||
+        normalizedSource.endsWith(`/${normalizedCandidate}`)
+      );
+    });
+  };
+
   const heroSections = Array.from(document.querySelectorAll(".hero-section"));
   const heroContexts = heroSections.map((section) => {
     const heroTexts = section.querySelectorAll(".hero-text");
     const videoContainer = section.querySelector(".video-container");
     const mediaSources = parseHeroMediaSources(section);
+    const mediaFallbackSources = buildHeroFallbackSources(
+      mediaSources,
+      parseHeroFallbackSources(section),
+    );
     const mediaSlots = Array.from(
       videoContainer?.querySelectorAll(".hero-media") ?? [],
     );
@@ -22,10 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const activeMediaSlot = activeSlotIndex === -1 ? 0 : activeSlotIndex;
     const initialMediaIndex =
       mediaSources.length && mediaSlots.length
-        ? mediaSources.indexOf(
-            mediaSlots[activeMediaSlot]?.getAttribute("src") || "",
-          )
+        ? findMediaIndex(mediaSources, getMediaSource(mediaSlots[activeMediaSlot]))
         : -1;
+
     return {
       section,
       sticky: section.querySelector(".hero-sticky"),
@@ -36,15 +75,24 @@ document.addEventListener("DOMContentLoaded", () => {
       totalSlides: heroTexts.length,
       isSecondary: section.classList.contains("hero-section-secondary"),
       mediaSources,
+      mediaFallbackSources,
       mediaSlots,
       activeMediaSlot,
+      slotMediaIndices: mediaSlots.map((slot, slotIndex) => {
+        const index = findMediaIndex(mediaSources, getMediaSource(slot));
+        if (index >= 0) return index;
+        return slotIndex === activeMediaSlot
+          ? initialMediaIndex >= 0
+            ? initialMediaIndex
+            : 0
+          : -1;
+      }),
       currentMediaIndex:
         initialMediaIndex >= 0
           ? initialMediaIndex
           : mediaSources.length
             ? 0
             : -1,
-      pendingMediaIndex: null,
       lastOpacity: -1,
       lastScale: -1,
       lastProgress: -1,
@@ -56,6 +104,58 @@ document.addEventListener("DOMContentLoaded", () => {
   const primaryHero = heroContexts.find((hero) => !hero.isSecondary) || null;
   const secondaryHero = heroContexts.find((hero) => hero.isSecondary) || null;
   const clamp01 = (value) => Math.min(Math.max(value, 0), 1);
+  const HERO_PROGRESS_FADE_WINDOW = 0.08;
+
+  const refreshHeroMediaSlots = (hero) => {
+    if (!hero?.videoContainer) return [];
+    const slots = Array.from(hero.videoContainer.querySelectorAll(".hero-media"));
+    hero.mediaSlots = slots;
+    if (!Array.isArray(hero.slotMediaIndices)) {
+      hero.slotMediaIndices = slots.map((slot) =>
+        findMediaIndex(hero.mediaSources, getMediaSource(slot)),
+      );
+    } else if (hero.slotMediaIndices.length !== slots.length) {
+      hero.slotMediaIndices = slots.map((slot, index) => {
+        const sourceIndex = findMediaIndex(hero.mediaSources, getMediaSource(slot));
+        if (sourceIndex >= 0) return sourceIndex;
+        return hero.slotMediaIndices[index] ?? -1;
+      });
+    }
+    const activeIndex = slots.findIndex((slot) => slot.classList.contains("is-active"));
+    hero.activeMediaSlot = activeIndex >= 0 ? activeIndex : 0;
+    return slots;
+  };
+
+  const ensureHeroMediaSlots = (hero) => {
+    if (!hero?.videoContainer) return [];
+    let slots = refreshHeroMediaSlots(hero);
+    if (!slots.length) return [];
+    if (slots.length >= 2) {
+      slots.forEach((slot) => {
+        slot.style.transition = "opacity 0s linear";
+        slot.style.webkitTransition = "opacity 0s linear";
+      });
+      return slots;
+    }
+
+    const baseSlot = slots[0];
+    const cloneSlot = baseSlot.cloneNode(true);
+    cloneSlot.classList.remove("is-active");
+
+    if (cloneSlot.tagName === "VIDEO") {
+      cloneSlot.dataset.autoplayTried = "false";
+    }
+
+    const overlay = hero.videoContainer.querySelector(".video-overlay");
+    hero.videoContainer.insertBefore(cloneSlot, overlay || null);
+    slots = refreshHeroMediaSlots(hero);
+    hero.slotMediaIndices = [hero.slotMediaIndices?.[0] ?? hero.currentMediaIndex, -1];
+    slots.forEach((slot) => {
+      slot.style.transition = "opacity 0s linear";
+      slot.style.webkitTransition = "opacity 0s linear";
+    });
+    return slots;
+  };
 
   const preloadHeroMedia = (sources) => {
     sources.forEach((src) => {
@@ -66,8 +166,124 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   heroContexts.forEach((hero) => {
-    if (hero.mediaSources?.length) preloadHeroMedia(hero.mediaSources);
+    if (hero.mediaFallbackSources?.length) preloadHeroMedia(hero.mediaFallbackSources);
   });
+
+  const fallbackToImage = (video) => {
+    if (!video?.isConnected) return;
+    const fallbackSrc = video.dataset.fallbackSrc || video.getAttribute("poster");
+    if (!fallbackSrc) return;
+
+    const img = document.createElement("img");
+    img.src = fallbackSrc;
+    img.alt = video.dataset.fallbackAlt || "App Screenshot";
+    img.className = Array.from(video.classList)
+      .filter(
+        (className) =>
+          className !== "phone-screenshot-video" &&
+          className !== "hero-media-video",
+      )
+      .join(" ");
+    if (video.classList.contains("phone-screenshot")) {
+      img.classList.add("phone-screenshot");
+    }
+    if (video.classList.contains("hero-media")) {
+      img.classList.add("hero-media");
+    }
+    img.draggable = false;
+    img.loading = video.classList.contains("hero-media") ? "eager" : "lazy";
+    img.decoding = "async";
+    video.replaceWith(img);
+  };
+
+  const tryAutoplay = (video, options = {}) => {
+    const { forceRetry = false } = options;
+    if (!video || video.tagName !== "VIDEO") return;
+    if (!forceRetry && video.dataset.autoplayTried === "true") return;
+
+    video.dataset.autoplayTried = "true";
+    video.muted = true;
+
+    let playPromise;
+    try {
+      playPromise = video.play();
+    } catch (error) {
+      fallbackToImage(video);
+      return;
+    }
+
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        fallbackToImage(video);
+      });
+    }
+  };
+
+  const setHeroSlotSource = (hero, slotIndex, mediaIndex) => {
+    const slots = hero.mediaSlots || [];
+    const media = slots[slotIndex];
+    if (!media || mediaIndex < 0 || mediaIndex >= hero.mediaSources.length) return;
+    if (hero.slotMediaIndices?.[slotIndex] === mediaIndex) return;
+
+    const videoSrc = hero.mediaSources[mediaIndex];
+    const fallbackSrc =
+      hero.mediaFallbackSources?.[mediaIndex] ||
+      videoSrc.replace(/\.mp4(?=$|\?)/i, ".webp");
+
+    if (media.tagName === "IMG") {
+      media.src = fallbackSrc || videoSrc;
+      media.setAttribute("data-src", media.src);
+      hero.slotMediaIndices[slotIndex] = mediaIndex;
+      return;
+    }
+
+    if (media.tagName === "VIDEO") {
+      media.preload = "auto";
+      if (fallbackSrc) {
+        media.poster = fallbackSrc;
+        media.dataset.fallbackSrc = fallbackSrc;
+      }
+
+      const currentSrc = media.getAttribute("data-src") || media.getAttribute("src") || "";
+      if (currentSrc !== videoSrc) {
+        media.setAttribute("data-src", videoSrc);
+        media.setAttribute("src", videoSrc);
+        media.load();
+      }
+
+      media.dataset.autoplayTried = "false";
+      tryAutoplay(media, { forceRetry: true });
+      hero.slotMediaIndices[slotIndex] = mediaIndex;
+    }
+  };
+
+  const isSlotMediaReady = (media) => {
+    if (!media) return false;
+    if (media.tagName === "IMG") {
+      return media.complete && media.naturalWidth > 0;
+    }
+    if (media.tagName === "VIDEO") {
+      return media.readyState >= 2;
+    }
+    return true;
+  };
+
+  const ensureSlotForMedia = (hero, mediaIndex, preferredSlotIndex = 0) => {
+    const slots = hero.mediaSlots || [];
+    if (!slots.length) return -1;
+
+    const existingSlotIndex = hero.slotMediaIndices.findIndex(
+      (index) => index === mediaIndex,
+    );
+    if (existingSlotIndex >= 0) return existingSlotIndex;
+
+    const boundedPreferred = Math.min(
+      Math.max(preferredSlotIndex, 0),
+      slots.length - 1,
+    );
+    setHeroSlotSource(hero, boundedPreferred, mediaIndex);
+    return boundedPreferred;
+  };
 
   const initAutoplayFallbackVideos = () => {
     const autoplayVideos = Array.from(
@@ -76,54 +292,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!autoplayVideos.length) return;
 
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-    const fallbackToImage = (video) => {
-      if (!video?.isConnected) return;
-      const fallbackSrc =
-        video.dataset.fallbackSrc || video.getAttribute("poster");
-      if (!fallbackSrc) return;
-
-      const img = document.createElement("img");
-      img.src = fallbackSrc;
-      img.alt = video.dataset.fallbackAlt || "App Screenshot";
-      img.className = Array.from(video.classList)
-        .filter(
-          (className) =>
-            className !== "phone-screenshot-video" &&
-            className !== "hero-media-video",
-        )
-        .join(" ");
-      if (video.classList.contains("phone-screenshot")) {
-        img.classList.add("phone-screenshot");
-      }
-      if (video.classList.contains("hero-media")) {
-        img.classList.add("hero-media");
-      }
-      img.draggable = false;
-      img.loading = video.classList.contains("hero-media") ? "eager" : "lazy";
-      img.decoding = "async";
-      video.replaceWith(img);
-    };
-
-    const tryAutoplay = (video) => {
-      if (!video || video.dataset.autoplayTried === "true") return;
-      video.dataset.autoplayTried = "true";
-      video.muted = true;
-
-      let playPromise;
-      try {
-        playPromise = video.play();
-      } catch (error) {
-        fallbackToImage(video);
-        return;
-      }
-
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          fallbackToImage(video);
-        });
-      }
-    };
 
     autoplayVideos.forEach((video) => {
       video.addEventListener(
@@ -291,45 +459,89 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   };
 
-  const swapHeroMedia = (hero, targetIndex) => {
+  const swapHeroMedia = (hero, textProgress) => {
     if (!hero || !hero.mediaSources?.length) return;
-    if (!hero.mediaSlots || hero.mediaSlots.length < 2) return;
+    const slots = ensureHeroMediaSlots(hero);
+    if (!slots.length) return;
 
-    const maxIndex = hero.mediaSources.length - 1;
-    const clampedIndex = Math.min(Math.max(targetIndex, 0), maxIndex);
-    if (clampedIndex === hero.currentMediaIndex) return;
+    const maxIndex = Math.max(hero.mediaSources.length - 1, 0);
+    const scaled = clamp01(textProgress) * maxIndex;
+    const segmentStart = Math.min(Math.max(Math.floor(scaled), 0), maxIndex);
+    const segmentEnd = Math.min(segmentStart + 1, maxIndex);
+    const localProgress = scaled - segmentStart;
+    const fadeStart = 0.5 - HERO_PROGRESS_FADE_WINDOW;
+    const fadeEnd = 0.5 + HERO_PROGRESS_FADE_WINDOW;
 
-    const nextSlot = hero.activeMediaSlot === 0 ? 1 : 0;
-    const nextImg = hero.mediaSlots[nextSlot];
-    const currentImg = hero.mediaSlots[hero.activeMediaSlot];
-    if (!nextImg || !currentImg) return;
+    let fromIndex = segmentStart;
+    let toIndex = segmentStart;
+    let fadeAmount = 0;
 
-    const nextSrc = hero.mediaSources[clampedIndex];
-    hero.pendingMediaIndex = clampedIndex;
-
-    if (nextImg.getAttribute("data-src") !== nextSrc) {
-      nextImg.setAttribute("data-src", nextSrc);
-      nextImg.src = nextSrc;
+    if (segmentEnd > segmentStart) {
+      if (localProgress < fadeStart) {
+        fromIndex = segmentStart;
+        toIndex = segmentStart;
+      } else if (localProgress > fadeEnd) {
+        fromIndex = segmentEnd;
+        toIndex = segmentEnd;
+      } else {
+        fromIndex = segmentStart;
+        toIndex = segmentEnd;
+        fadeAmount = clamp01(
+          (localProgress - fadeStart) / Math.max(fadeEnd - fadeStart, 0.0001),
+        );
+      }
     }
 
-    const finalizeSwap = () => {
-      if (hero.pendingMediaIndex !== clampedIndex) return;
-      nextImg.classList.add("is-active");
-      currentImg.classList.remove("is-active");
-      hero.activeMediaSlot = nextSlot;
-      hero.currentMediaIndex = clampedIndex;
-      hero.pendingMediaIndex = null;
-    };
+    const primarySlotIndex = ensureSlotForMedia(
+      hero,
+      fromIndex,
+      hero.activeMediaSlot ?? 0,
+    );
+    if (primarySlotIndex < 0) return;
 
-    if (nextImg.complete && nextImg.naturalWidth > 0) {
-      finalizeSwap();
-    } else {
-      const onLoad = () => {
-        nextImg.removeEventListener("load", onLoad);
-        finalizeSwap();
-      };
-      nextImg.addEventListener("load", onLoad);
+    let secondarySlotIndex = -1;
+    if (toIndex !== fromIndex) {
+      secondarySlotIndex = ensureSlotForMedia(
+        hero,
+        toIndex,
+        primarySlotIndex === 0 ? 1 : 0,
+      );
+      if (secondarySlotIndex >= 0) {
+        const secondaryMedia = slots[secondarySlotIndex];
+        if (!isSlotMediaReady(secondaryMedia)) {
+          fadeAmount = 0;
+        }
+      }
     }
+
+    slots.forEach((slot, index) => {
+      if (index === primarySlotIndex) {
+        slot.style.zIndex = "2";
+        slot.style.opacity = `${(1 - fadeAmount).toFixed(3)}`;
+        if (!slot.classList.contains("is-active")) slot.classList.add("is-active");
+        return;
+      }
+
+      if (index === secondarySlotIndex) {
+        slot.style.zIndex = "1";
+        slot.style.opacity = "1";
+        if (!slot.classList.contains("is-active")) slot.classList.add("is-active");
+        return;
+      }
+
+      slot.style.zIndex = "0";
+      slot.style.opacity = "0";
+      slot.classList.remove("is-active");
+    });
+
+    if (secondarySlotIndex >= 0 && fadeAmount >= 0.999) {
+      hero.activeMediaSlot = secondarySlotIndex;
+      hero.currentMediaIndex = toIndex;
+      return;
+    }
+
+    hero.activeMediaSlot = primarySlotIndex;
+    hero.currentMediaIndex = fromIndex;
   };
 
   function updateHeroByScroll(scrollYOverride) {
@@ -351,13 +563,13 @@ document.addEventListener("DOMContentLoaded", () => {
         Math.round(textProgress * (hero.totalSlides - 1)),
         hero.totalSlides - 1,
       );
+      swapHeroMedia(hero, textProgress);
 
       const targetScrollTop = textProgress * textFlowScrollHeight;
       if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
         hero.textFlow.scrollTop = targetScrollTop;
       }
       if (hero.lastActiveIndex !== activeDot) {
-        swapHeroMedia(hero, activeDot);
         hero.lastActiveIndex = activeDot;
 
         const activeText = hero.heroTexts[activeDot];
