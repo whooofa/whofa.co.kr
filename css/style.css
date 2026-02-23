@@ -323,7 +323,7 @@ body {
   pointer-events: auto;
   user-select: text;
   -webkit-user-select: text;
-  overflow-y: scroll;
+  overflow-y: hidden;
   overflow-x: hidden;
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -368,7 +368,7 @@ body {
 
 @media (max-width: 768px) {
   .hero-text-flow {
-    overflow-y: scroll;
+    overflow-y: hidden;
     pointer-events: none;
     touch-action: pan-y;
   }
