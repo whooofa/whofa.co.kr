@@ -595,7 +595,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const rawTextProgress = hero.isSecondary
         ? getSecondaryTextProgress(metrics, viewportHeight).textProgress
         : metrics.progress;
-      const shouldSnapToStart = !hero.isSecondary && metrics.scrollTop <= 1;
+      const shouldSnapToStart = !hero.isSecondary && metrics.scrollTop <= 2;
       const textProgress = shouldSnapToStart ? 0 : rawTextProgress;
 
       const textFlowScrollHeight =
@@ -663,7 +663,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.requestAnimationFrame(() => {
       ticking = false;
       const scrollY = pendingScrollY;
-      if (Math.abs(scrollY - lastScrollY) < 0.2) return;
+      const shouldForceNearTopUpdate = scrollY <= 1 || lastScrollY <= 1;
+      if (
+        Math.abs(scrollY - lastScrollY) < 0.2 &&
+        !shouldForceNearTopUpdate
+      ) {
+        return;
+      }
       lastScrollY = scrollY;
       runScrollUpdates(scrollY);
     });
@@ -690,7 +696,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let lastPolledScrollY = getScrollY();
     const poll = () => {
       const current = getScrollY();
-      if (Math.abs(current - lastPolledScrollY) > 0.1) {
+      const hasScrollDelta = Math.abs(current - lastPolledScrollY) > 0.1;
+      const shouldForceNearTopPoll = current <= 1 || lastPolledScrollY <= 1;
+      if (hasScrollDelta || shouldForceNearTopPoll) {
         lastPolledScrollY = current;
         onScroll(current);
       }
@@ -923,7 +931,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const denom = Math.max(viewportHeight - cachedNavbarHeight, 1);
       const progress = clamp01((viewportHeight - appTop) / denom);
       navProgress = progress;
-      const shouldForceTopReset = scrollY <= 1 && progress <= 0.001;
+      const shouldForceTopReset = scrollY <= 2 && progress <= 0.02;
 
       const progressChanged = Math.abs(progress - lastPrimaryProgress) > 0.005;
       if (progressChanged || shouldForceTopReset) {
