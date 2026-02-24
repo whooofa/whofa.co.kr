@@ -199,10 +199,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const tryAutoplay = (video, options = {}) => {
     const { forceRetry = false } = options;
     if (!video || video.tagName !== "VIDEO") return;
-    if (!forceRetry && video.dataset.autoplayTried === "true") return;
+    if (
+      !forceRetry &&
+      video.dataset.autoplayTried === "true" &&
+      !video.paused &&
+      !video.ended
+    ) {
+      return;
+    }
 
     video.dataset.autoplayTried = "true";
+    video.dataset.autoplayFailures = video.dataset.autoplayFailures || "0";
     video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+
+    if (video.readyState === 0) {
+      video.load();
+    }
 
     let playPromise;
     try {
@@ -213,9 +227,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
+      playPromise
+        .then(() => {
+          video.dataset.autoplayFailures = "0";
+        })
+        .catch((error) => {
+          const failures = Number(video.dataset.autoplayFailures || "0") + 1;
+          video.dataset.autoplayFailures = `${failures}`;
+          const isTransientError =
+            error?.name === "AbortError" || error?.name === "NotAllowedError";
+          if (isTransientError && failures < 3 && video.isConnected) {
+            window.setTimeout(() => {
+              if (!video.isConnected) return;
+              tryAutoplay(video, { forceRetry: true });
+            }, 120);
+            return;
+          }
+
         fallbackToImage(video);
-      });
+        });
     }
   };
 
@@ -307,13 +337,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (!entry.isIntersecting) return;
             const video = entry.target;
-            observer.unobserve(video);
-            tryAutoplay(video);
+            if (!entry.isIntersecting) return;
+            if (video.paused || video.ended) {
+              tryAutoplay(video, { forceRetry: true });
+            }
           });
         },
-        { threshold: 0.2 },
+        { threshold: [0, 0.2, 0.5] },
       );
 
       autoplayVideos.forEach((video) => {
@@ -322,6 +353,14 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
         observer.observe(video);
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) return;
+        autoplayVideos.forEach((video) => {
+          if (!video.isConnected || !video.paused) return;
+          tryAutoplay(video, { forceRetry: true });
+        });
       });
     } else {
       autoplayVideos.forEach((video) => {
@@ -553,9 +592,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!hero.section || !hero.textFlow || hero.totalSlides === 0) return;
 
       const metrics = getHeroMetrics(hero, viewportHeight, scrollY);
-      const textProgress = hero.isSecondary
+      const rawTextProgress = hero.isSecondary
         ? getSecondaryTextProgress(metrics, viewportHeight).textProgress
         : metrics.progress;
+      const shouldSnapToStart = !hero.isSecondary && metrics.scrollTop <= 1;
+      const textProgress = shouldSnapToStart ? 0 : rawTextProgress;
 
       const textFlowScrollHeight =
         hero.textFlow.scrollHeight - hero.textFlow.clientHeight;
@@ -566,7 +607,11 @@ document.addEventListener("DOMContentLoaded", () => {
       swapHeroMedia(hero, textProgress);
 
       const targetScrollTop = textProgress * textFlowScrollHeight;
-      if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
+      if (shouldSnapToStart) {
+        if (hero.textFlow.scrollTop !== 0) {
+          hero.textFlow.scrollTop = 0;
+        }
+      } else if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
         hero.textFlow.scrollTop = targetScrollTop;
       }
       if (hero.lastActiveIndex !== activeDot) {
@@ -810,6 +855,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const applyNavProgress = (progress) => {
     const eased = progress;
+    const blurMax = 14;
+    const navBlur = blurMax * eased;
 
     if (navbar && !isMobile()) {
       const padYExpanded = 56;
@@ -820,6 +867,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const bgAlphaMax = 0.58;
       const bgAlpha = bgAlphaMax * eased;
       navbar.style.setProperty("--nav-bg-alpha", `${bgAlpha.toFixed(3)}`);
+      navbar.style.setProperty("--nav-blur", `${navBlur.toFixed(2)}px`);
     } else if (navbar && isMobile()) {
       navbar.style.setProperty("--nav-pad-y", "18px");
       const bgAlphaMax = 0.58;
@@ -827,6 +875,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "--nav-bg-alpha",
         `${(bgAlphaMax * eased).toFixed(3)}`,
       );
+      navbar.style.setProperty("--nav-blur", `${navBlur.toFixed(2)}px`);
     }
 
     if (navContainer && !isMobile()) {
@@ -874,15 +923,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const denom = Math.max(viewportHeight - cachedNavbarHeight, 1);
       const progress = clamp01((viewportHeight - appTop) / denom);
       navProgress = progress;
+      const shouldForceTopReset = scrollY <= 1 && progress <= 0.001;
 
       const progressChanged = Math.abs(progress - lastPrimaryProgress) > 0.005;
-      if (progressChanged) {
+      if (progressChanged || shouldForceTopReset) {
         lastPrimaryProgress = progress;
 
         const eased = progress;
 
         if (primaryHeroSticky) {
-          const scale = 1 - eased * 0.25;
+          const scale = shouldForceTopReset ? 1 : 1 - eased * 0.25;
 
           if (Math.abs(scale - lastPrimaryScale) > 0.002) {
             const scaleStr = scale.toFixed(4);
@@ -1049,9 +1099,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
   const scrollToTarget = (target) => {
     if (!target) return;
-    const navOffset = navbar?.offsetHeight ?? 0;
-    const targetTop =
-      target.getBoundingClientRect().top + window.pageYOffset - navOffset;
+    const targetTop = target.getBoundingClientRect().top + window.pageYOffset;
 
     if (lenis) {
       lenis.scrollTo(targetTop, {
@@ -1084,15 +1132,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  navToggle.addEventListener("click", () => {
-    navToggle.classList.add("animating");
-    navToggle.classList.toggle("active");
-    navMenus.forEach((menu) => menu.classList.toggle("active"));
-  });
+  const closeMobileNav = () => {
+    navMenus.forEach((menu) => menu.classList.remove("active"));
+    if (navToggle) navToggle.classList.remove("active");
+  };
 
-  navToggle.addEventListener("transitionend", () => {
-    navToggle.classList.remove("animating");
-  });
+  if (navToggle) {
+    navToggle.addEventListener("click", () => {
+      navToggle.classList.add("animating");
+      navToggle.classList.toggle("active");
+      navMenus.forEach((menu) => menu.classList.toggle("active"));
+    });
+
+    navToggle.addEventListener("transitionend", () => {
+      navToggle.classList.remove("animating");
+    });
+  }
 
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("click", (event) => {
@@ -1105,10 +1160,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      navMenus.forEach((menu) => menu.classList.remove("active"));
-      setTimeout(() => {
-        navToggle.classList.remove("active");
-      }, 300);
+      closeMobileNav();
     });
   });
 
@@ -1117,10 +1169,7 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       scrollToTop();
 
-      navMenus.forEach((menu) => menu.classList.remove("active"));
-      setTimeout(() => {
-        navToggle.classList.remove("active");
-      }, 300);
+      closeMobileNav();
     });
   }
 
