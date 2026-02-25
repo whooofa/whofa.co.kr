@@ -107,6 +107,23 @@
         ]
       }
     </script>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCwWpdGtG7emFpkxr1y3xjooPnkhJ0z2fg",
+        authDomain: "whofa-homepage.firebaseapp.com",
+        projectId: "whofa-homepage",
+        storageBucket: "whofa-homepage.firebasestorage.app",
+        messagingSenderId: "216829242328",
+        appId: "1:216829242328:web:1cc67d78151da6cf2c60ad",
+        measurementId: "G-KLNX4KR964",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      getAnalytics(app);
+    </script>
   </head>
   <body>
     <nav class="navbar">
