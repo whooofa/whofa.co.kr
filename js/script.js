@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const parseHeroMediaSources = (section) => {
-    const sources = section?.dataset?.heroMedia;
+  const parseCommaSeparatedDataset = (section, key) => {
+    const sources = section?.dataset?.[key];
     if (!sources) return [];
     return sources
       .split(",")
@@ -8,11 +8,51 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter(Boolean);
   };
 
+  const parseHeroMediaSources = (section) =>
+    parseCommaSeparatedDataset(section, "heroMedia");
+  const parseHeroFallbackSources = (section) =>
+    parseCommaSeparatedDataset(section, "heroMediaFallback");
+  const buildHeroFallbackSources = (mediaSources, fallbackSources) => {
+    if (fallbackSources.length === mediaSources.length) return fallbackSources;
+
+    return mediaSources.map(
+      (source, index) =>
+        fallbackSources[index] || source.replace(/\.mp4(?=$|\?)/i, ".webp"),
+    );
+  };
+  const getMediaSource = (mediaElement) => {
+    if (!mediaElement) return "";
+    const attrSrc = mediaElement.getAttribute("src");
+    if (attrSrc) return attrSrc;
+    if (mediaElement.tagName === "VIDEO") {
+      const sourceNode = mediaElement.querySelector("source");
+      if (sourceNode?.getAttribute("src")) return sourceNode.getAttribute("src");
+      if (mediaElement.currentSrc) return mediaElement.currentSrc;
+    }
+    return "";
+  };
+  const findMediaIndex = (sources, mediaSource) => {
+    if (!sources?.length || !mediaSource) return -1;
+
+    const normalizedSource = mediaSource.split("?")[0];
+    return sources.findIndex((source) => {
+      const normalizedCandidate = source.split("?")[0];
+      return (
+        normalizedSource === normalizedCandidate ||
+        normalizedSource.endsWith(`/${normalizedCandidate}`)
+      );
+    });
+  };
+
   const heroSections = Array.from(document.querySelectorAll(".hero-section"));
   const heroContexts = heroSections.map((section) => {
     const heroTexts = section.querySelectorAll(".hero-text");
     const videoContainer = section.querySelector(".video-container");
     const mediaSources = parseHeroMediaSources(section);
+    const mediaFallbackSources = buildHeroFallbackSources(
+      mediaSources,
+      parseHeroFallbackSources(section),
+    );
     const mediaSlots = Array.from(
       videoContainer?.querySelectorAll(".hero-media") ?? [],
     );
@@ -22,10 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const activeMediaSlot = activeSlotIndex === -1 ? 0 : activeSlotIndex;
     const initialMediaIndex =
       mediaSources.length && mediaSlots.length
-        ? mediaSources.indexOf(
-            mediaSlots[activeMediaSlot]?.getAttribute("src") || "",
-          )
+        ? findMediaIndex(mediaSources, getMediaSource(mediaSlots[activeMediaSlot]))
         : -1;
+
     return {
       section,
       sticky: section.querySelector(".hero-sticky"),
@@ -36,15 +75,24 @@ document.addEventListener("DOMContentLoaded", () => {
       totalSlides: heroTexts.length,
       isSecondary: section.classList.contains("hero-section-secondary"),
       mediaSources,
+      mediaFallbackSources,
       mediaSlots,
       activeMediaSlot,
+      slotMediaIndices: mediaSlots.map((slot, slotIndex) => {
+        const index = findMediaIndex(mediaSources, getMediaSource(slot));
+        if (index >= 0) return index;
+        return slotIndex === activeMediaSlot
+          ? initialMediaIndex >= 0
+            ? initialMediaIndex
+            : 0
+          : -1;
+      }),
       currentMediaIndex:
         initialMediaIndex >= 0
           ? initialMediaIndex
           : mediaSources.length
             ? 0
             : -1,
-      pendingMediaIndex: null,
       lastOpacity: -1,
       lastScale: -1,
       lastProgress: -1,
@@ -56,6 +104,58 @@ document.addEventListener("DOMContentLoaded", () => {
   const primaryHero = heroContexts.find((hero) => !hero.isSecondary) || null;
   const secondaryHero = heroContexts.find((hero) => hero.isSecondary) || null;
   const clamp01 = (value) => Math.min(Math.max(value, 0), 1);
+  const HERO_PROGRESS_FADE_WINDOW = 0.08;
+
+  const refreshHeroMediaSlots = (hero) => {
+    if (!hero?.videoContainer) return [];
+    const slots = Array.from(hero.videoContainer.querySelectorAll(".hero-media"));
+    hero.mediaSlots = slots;
+    if (!Array.isArray(hero.slotMediaIndices)) {
+      hero.slotMediaIndices = slots.map((slot) =>
+        findMediaIndex(hero.mediaSources, getMediaSource(slot)),
+      );
+    } else if (hero.slotMediaIndices.length !== slots.length) {
+      hero.slotMediaIndices = slots.map((slot, index) => {
+        const sourceIndex = findMediaIndex(hero.mediaSources, getMediaSource(slot));
+        if (sourceIndex >= 0) return sourceIndex;
+        return hero.slotMediaIndices[index] ?? -1;
+      });
+    }
+    const activeIndex = slots.findIndex((slot) => slot.classList.contains("is-active"));
+    hero.activeMediaSlot = activeIndex >= 0 ? activeIndex : 0;
+    return slots;
+  };
+
+  const ensureHeroMediaSlots = (hero) => {
+    if (!hero?.videoContainer) return [];
+    let slots = refreshHeroMediaSlots(hero);
+    if (!slots.length) return [];
+    if (slots.length >= 2) {
+      slots.forEach((slot) => {
+        slot.style.transition = "opacity 0s linear";
+        slot.style.webkitTransition = "opacity 0s linear";
+      });
+      return slots;
+    }
+
+    const baseSlot = slots[0];
+    const cloneSlot = baseSlot.cloneNode(true);
+    cloneSlot.classList.remove("is-active");
+
+    if (cloneSlot.tagName === "VIDEO") {
+      cloneSlot.dataset.autoplayTried = "false";
+    }
+
+    const overlay = hero.videoContainer.querySelector(".video-overlay");
+    hero.videoContainer.insertBefore(cloneSlot, overlay || null);
+    slots = refreshHeroMediaSlots(hero);
+    hero.slotMediaIndices = [hero.slotMediaIndices?.[0] ?? hero.currentMediaIndex, -1];
+    slots.forEach((slot) => {
+      slot.style.transition = "opacity 0s linear";
+      slot.style.webkitTransition = "opacity 0s linear";
+    });
+    return slots;
+  };
 
   const preloadHeroMedia = (sources) => {
     sources.forEach((src) => {
@@ -66,57 +166,164 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   heroContexts.forEach((hero) => {
-    if (hero.mediaSources?.length) preloadHeroMedia(hero.mediaSources);
+    if (hero.mediaFallbackSources?.length) preloadHeroMedia(hero.mediaFallbackSources);
   });
 
-  const initPhoneLoopPreviews = () => {
-    const loopVideos = Array.from(
-      document.querySelectorAll(".phone-screenshot-video"),
-    );
-    if (!loopVideos.length) return;
+  const fallbackToImage = (video) => {
+    if (!video?.isConnected) return;
+    const fallbackSrc = video.dataset.fallbackSrc || video.getAttribute("poster");
+    if (!fallbackSrc) return;
 
-    const fallbackToImage = (video) => {
-      if (!video?.isConnected) return;
-      const fallbackSrc =
-        video.dataset.fallbackSrc || video.getAttribute("poster");
-      if (!fallbackSrc) return;
+    const img = document.createElement("img");
+    img.src = fallbackSrc;
+    img.alt = video.dataset.fallbackAlt || "App Screenshot";
+    img.className = Array.from(video.classList)
+      .filter(
+        (className) =>
+          className !== "phone-screenshot-video" &&
+          className !== "hero-media-video",
+      )
+      .join(" ");
+    if (video.classList.contains("phone-screenshot")) {
+      img.classList.add("phone-screenshot");
+    }
+    if (video.classList.contains("hero-media")) {
+      img.classList.add("hero-media");
+    }
+    img.draggable = false;
+    img.loading = video.classList.contains("hero-media") ? "eager" : "lazy";
+    img.decoding = "async";
+    video.replaceWith(img);
+  };
 
-      const img = document.createElement("img");
-      img.src = fallbackSrc;
-      img.alt = video.dataset.fallbackAlt || "App Screenshot";
-      img.className = Array.from(video.classList)
-        .filter((className) => className !== "phone-screenshot-video")
-        .join(" ");
-      if (!img.classList.contains("phone-screenshot")) {
-        img.classList.add("phone-screenshot");
-      }
-      img.draggable = false;
-      img.loading = "lazy";
-      img.decoding = "async";
-      video.replaceWith(img);
-    };
+  const tryAutoplay = (video, options = {}) => {
+    const { forceRetry = false } = options;
+    if (!video || video.tagName !== "VIDEO") return;
+    if (
+      !forceRetry &&
+      video.dataset.autoplayTried === "true" &&
+      !video.paused &&
+      !video.ended
+    ) {
+      return;
+    }
 
-    const tryAutoplay = (video) => {
-      if (!video || video.dataset.autoplayTried === "true") return;
-      video.dataset.autoplayTried = "true";
-      video.muted = true;
+    video.dataset.autoplayTried = "true";
+    video.dataset.autoplayFailures = video.dataset.autoplayFailures || "0";
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
 
-      let playPromise;
-      try {
-        playPromise = video.play();
-      } catch (error) {
+    if (video.readyState === 0) {
+      video.load();
+    }
+
+    let playPromise;
+    try {
+      playPromise = video.play();
+    } catch (error) {
+      fallbackToImage(video);
+      return;
+    }
+
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise
+        .then(() => {
+          video.dataset.autoplayFailures = "0";
+        })
+        .catch((error) => {
+          const failures = Number(video.dataset.autoplayFailures || "0") + 1;
+          video.dataset.autoplayFailures = `${failures}`;
+          const isTransientError =
+            error?.name === "AbortError" || error?.name === "NotAllowedError";
+          if (isTransientError && failures < 3 && video.isConnected) {
+            window.setTimeout(() => {
+              if (!video.isConnected) return;
+              tryAutoplay(video, { forceRetry: true });
+            }, 120);
+            return;
+          }
+
         fallbackToImage(video);
-        return;
-      }
-
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          fallbackToImage(video);
         });
-      }
-    };
+    }
+  };
 
-    loopVideos.forEach((video) => {
+  const setHeroSlotSource = (hero, slotIndex, mediaIndex) => {
+    const slots = hero.mediaSlots || [];
+    const media = slots[slotIndex];
+    if (!media || mediaIndex < 0 || mediaIndex >= hero.mediaSources.length) return;
+    if (hero.slotMediaIndices?.[slotIndex] === mediaIndex) return;
+
+    const videoSrc = hero.mediaSources[mediaIndex];
+    const fallbackSrc =
+      hero.mediaFallbackSources?.[mediaIndex] ||
+      videoSrc.replace(/\.mp4(?=$|\?)/i, ".webp");
+
+    if (media.tagName === "IMG") {
+      media.src = fallbackSrc || videoSrc;
+      media.setAttribute("data-src", media.src);
+      hero.slotMediaIndices[slotIndex] = mediaIndex;
+      return;
+    }
+
+    if (media.tagName === "VIDEO") {
+      media.preload = "auto";
+      if (fallbackSrc) {
+        media.poster = fallbackSrc;
+        media.dataset.fallbackSrc = fallbackSrc;
+      }
+
+      const currentSrc = media.getAttribute("data-src") || media.getAttribute("src") || "";
+      if (currentSrc !== videoSrc) {
+        media.setAttribute("data-src", videoSrc);
+        media.setAttribute("src", videoSrc);
+        media.load();
+      }
+
+      media.dataset.autoplayTried = "false";
+      tryAutoplay(media, { forceRetry: true });
+      hero.slotMediaIndices[slotIndex] = mediaIndex;
+    }
+  };
+
+  const isSlotMediaReady = (media) => {
+    if (!media) return false;
+    if (media.tagName === "IMG") {
+      return media.complete && media.naturalWidth > 0;
+    }
+    if (media.tagName === "VIDEO") {
+      return media.readyState >= 2;
+    }
+    return true;
+  };
+
+  const ensureSlotForMedia = (hero, mediaIndex, preferredSlotIndex = 0) => {
+    const slots = hero.mediaSlots || [];
+    if (!slots.length) return -1;
+
+    const existingSlotIndex = hero.slotMediaIndices.findIndex(
+      (index) => index === mediaIndex,
+    );
+    if (existingSlotIndex >= 0) return existingSlotIndex;
+
+    const boundedPreferred = Math.min(
+      Math.max(preferredSlotIndex, 0),
+      slots.length - 1,
+    );
+    setHeroSlotSource(hero, boundedPreferred, mediaIndex);
+    return boundedPreferred;
+  };
+
+  const initAutoplayFallbackVideos = () => {
+    const autoplayVideos = Array.from(
+      document.querySelectorAll("video[data-fallback-src]"),
+    );
+    if (!autoplayVideos.length) return;
+
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    autoplayVideos.forEach((video) => {
       video.addEventListener(
         "error",
         () => {
@@ -130,24 +337,88 @@ document.addEventListener("DOMContentLoaded", () => {
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (!entry.isIntersecting) return;
             const video = entry.target;
-            observer.unobserve(video);
-            tryAutoplay(video);
+            if (!entry.isIntersecting) return;
+            if (video.paused || video.ended) {
+              tryAutoplay(video, { forceRetry: true });
+            }
           });
         },
-        { threshold: 0.2 },
+        { threshold: [0, 0.2, 0.5] },
       );
 
-      loopVideos.forEach((video) => observer.observe(video));
+      autoplayVideos.forEach((video) => {
+        if (isIOSDevice && video.classList.contains("hero-media-video")) {
+          tryAutoplay(video);
+          return;
+        }
+        observer.observe(video);
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) return;
+        autoplayVideos.forEach((video) => {
+          if (!video.isConnected || !video.paused) return;
+          tryAutoplay(video, { forceRetry: true });
+        });
+      });
     } else {
-      loopVideos.forEach((video) => {
+      autoplayVideos.forEach((video) => {
         tryAutoplay(video);
       });
     }
   };
 
-  initPhoneLoopPreviews();
+  initAutoplayFallbackVideos();
+
+  const initHeroWordSwap = () => {
+    const verbNode = document.querySelector('[data-hero-swap="verb"]');
+    const targetNode = document.querySelector('[data-hero-swap="target"]');
+    const sentenceNode = document.querySelector(".swap-line");
+    if (!verbNode || !targetNode || !sentenceNode) return;
+
+    const states = [
+      { verb: "Build", target: "music" },
+      { verb: "Blind", target: "music" },
+      { verb: "Build", target: "career" },
+    ];
+    let stateIndex = 0;
+    const reduceMotionRequested = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    const updateAriaLabel = (state) => {
+      sentenceNode.setAttribute(
+        "aria-label",
+        `${state.verb} your ${state.target}.`,
+      );
+    };
+
+    const swapWord = (node, nextValue) => {
+      if (!node || node.textContent === nextValue) return;
+      if (reduceMotionRequested) {
+        node.textContent = nextValue;
+        return;
+      }
+
+      node.classList.add("is-swapping");
+      window.setTimeout(() => {
+        node.textContent = nextValue;
+        node.classList.remove("is-swapping");
+      }, 140);
+    };
+
+    updateAriaLabel(states[stateIndex]);
+    window.setInterval(() => {
+      stateIndex = (stateIndex + 1) % states.length;
+      const nextState = states[stateIndex];
+      swapWord(verbNode, nextState.verb);
+      swapWord(targetNode, nextState.target);
+      updateAriaLabel(nextState);
+    }, reduceMotionRequested ? 2200 : 1800);
+  };
+
+  initHeroWordSwap();
 
   let isLowPowerMode = false;
   let frameSkipCounter = 0;
@@ -227,45 +498,89 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   };
 
-  const swapHeroMedia = (hero, targetIndex) => {
+  const swapHeroMedia = (hero, textProgress) => {
     if (!hero || !hero.mediaSources?.length) return;
-    if (!hero.mediaSlots || hero.mediaSlots.length < 2) return;
+    const slots = ensureHeroMediaSlots(hero);
+    if (!slots.length) return;
 
-    const maxIndex = hero.mediaSources.length - 1;
-    const clampedIndex = Math.min(Math.max(targetIndex, 0), maxIndex);
-    if (clampedIndex === hero.currentMediaIndex) return;
+    const maxIndex = Math.max(hero.mediaSources.length - 1, 0);
+    const scaled = clamp01(textProgress) * maxIndex;
+    const segmentStart = Math.min(Math.max(Math.floor(scaled), 0), maxIndex);
+    const segmentEnd = Math.min(segmentStart + 1, maxIndex);
+    const localProgress = scaled - segmentStart;
+    const fadeStart = 0.5 - HERO_PROGRESS_FADE_WINDOW;
+    const fadeEnd = 0.5 + HERO_PROGRESS_FADE_WINDOW;
 
-    const nextSlot = hero.activeMediaSlot === 0 ? 1 : 0;
-    const nextImg = hero.mediaSlots[nextSlot];
-    const currentImg = hero.mediaSlots[hero.activeMediaSlot];
-    if (!nextImg || !currentImg) return;
+    let fromIndex = segmentStart;
+    let toIndex = segmentStart;
+    let fadeAmount = 0;
 
-    const nextSrc = hero.mediaSources[clampedIndex];
-    hero.pendingMediaIndex = clampedIndex;
-
-    if (nextImg.getAttribute("data-src") !== nextSrc) {
-      nextImg.setAttribute("data-src", nextSrc);
-      nextImg.src = nextSrc;
+    if (segmentEnd > segmentStart) {
+      if (localProgress < fadeStart) {
+        fromIndex = segmentStart;
+        toIndex = segmentStart;
+      } else if (localProgress > fadeEnd) {
+        fromIndex = segmentEnd;
+        toIndex = segmentEnd;
+      } else {
+        fromIndex = segmentStart;
+        toIndex = segmentEnd;
+        fadeAmount = clamp01(
+          (localProgress - fadeStart) / Math.max(fadeEnd - fadeStart, 0.0001),
+        );
+      }
     }
 
-    const finalizeSwap = () => {
-      if (hero.pendingMediaIndex !== clampedIndex) return;
-      nextImg.classList.add("is-active");
-      currentImg.classList.remove("is-active");
-      hero.activeMediaSlot = nextSlot;
-      hero.currentMediaIndex = clampedIndex;
-      hero.pendingMediaIndex = null;
-    };
+    const primarySlotIndex = ensureSlotForMedia(
+      hero,
+      fromIndex,
+      hero.activeMediaSlot ?? 0,
+    );
+    if (primarySlotIndex < 0) return;
 
-    if (nextImg.complete && nextImg.naturalWidth > 0) {
-      finalizeSwap();
-    } else {
-      const onLoad = () => {
-        nextImg.removeEventListener("load", onLoad);
-        finalizeSwap();
-      };
-      nextImg.addEventListener("load", onLoad);
+    let secondarySlotIndex = -1;
+    if (toIndex !== fromIndex) {
+      secondarySlotIndex = ensureSlotForMedia(
+        hero,
+        toIndex,
+        primarySlotIndex === 0 ? 1 : 0,
+      );
+      if (secondarySlotIndex >= 0) {
+        const secondaryMedia = slots[secondarySlotIndex];
+        if (!isSlotMediaReady(secondaryMedia)) {
+          fadeAmount = 0;
+        }
+      }
     }
+
+    slots.forEach((slot, index) => {
+      if (index === primarySlotIndex) {
+        slot.style.zIndex = "2";
+        slot.style.opacity = `${(1 - fadeAmount).toFixed(3)}`;
+        if (!slot.classList.contains("is-active")) slot.classList.add("is-active");
+        return;
+      }
+
+      if (index === secondarySlotIndex) {
+        slot.style.zIndex = "1";
+        slot.style.opacity = "1";
+        if (!slot.classList.contains("is-active")) slot.classList.add("is-active");
+        return;
+      }
+
+      slot.style.zIndex = "0";
+      slot.style.opacity = "0";
+      slot.classList.remove("is-active");
+    });
+
+    if (secondarySlotIndex >= 0 && fadeAmount >= 0.999) {
+      hero.activeMediaSlot = secondarySlotIndex;
+      hero.currentMediaIndex = toIndex;
+      return;
+    }
+
+    hero.activeMediaSlot = primarySlotIndex;
+    hero.currentMediaIndex = fromIndex;
   };
 
   function updateHeroByScroll(scrollYOverride) {
@@ -277,9 +592,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!hero.section || !hero.textFlow || hero.totalSlides === 0) return;
 
       const metrics = getHeroMetrics(hero, viewportHeight, scrollY);
-      const textProgress = hero.isSecondary
+      const rawTextProgress = hero.isSecondary
         ? getSecondaryTextProgress(metrics, viewportHeight).textProgress
         : metrics.progress;
+      const shouldSnapToStart = !hero.isSecondary && metrics.scrollTop <= 2;
+      const textProgress = shouldSnapToStart ? 0 : rawTextProgress;
 
       const textFlowScrollHeight =
         hero.textFlow.scrollHeight - hero.textFlow.clientHeight;
@@ -287,13 +604,17 @@ document.addEventListener("DOMContentLoaded", () => {
         Math.round(textProgress * (hero.totalSlides - 1)),
         hero.totalSlides - 1,
       );
+      swapHeroMedia(hero, textProgress);
 
       const targetScrollTop = textProgress * textFlowScrollHeight;
-      if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
+      if (shouldSnapToStart) {
+        if (hero.textFlow.scrollTop !== 0) {
+          hero.textFlow.scrollTop = 0;
+        }
+      } else if (Math.abs(hero.textFlow.scrollTop - targetScrollTop) > 0.5) {
         hero.textFlow.scrollTop = targetScrollTop;
       }
       if (hero.lastActiveIndex !== activeDot) {
-        swapHeroMedia(hero, activeDot);
         hero.lastActiveIndex = activeDot;
 
         const activeText = hero.heroTexts[activeDot];
@@ -342,7 +663,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.requestAnimationFrame(() => {
       ticking = false;
       const scrollY = pendingScrollY;
-      if (Math.abs(scrollY - lastScrollY) < 0.2) return;
+      const shouldForceNearTopUpdate = scrollY <= 1 || lastScrollY <= 1;
+      if (
+        Math.abs(scrollY - lastScrollY) < 0.2 &&
+        !shouldForceNearTopUpdate
+      ) {
+        return;
+      }
       lastScrollY = scrollY;
       runScrollUpdates(scrollY);
     });
@@ -364,6 +691,22 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     { passive: true },
   );
+
+  const startScrollPolling = () => {
+    let lastPolledScrollY = getScrollY();
+    const poll = () => {
+      const current = getScrollY();
+      const hasScrollDelta = Math.abs(current - lastPolledScrollY) > 0.1;
+      const shouldForceNearTopPoll = current <= 1 || lastPolledScrollY <= 1;
+      if (hasScrollDelta || shouldForceNearTopPoll) {
+        lastPolledScrollY = current;
+        onScroll(current);
+      }
+      window.requestAnimationFrame(poll);
+    };
+    window.requestAnimationFrame(poll);
+  };
+  startScrollPolling();
 
   const primaryHeroSection = primaryHero?.section ?? null;
   const primaryHeroSticky = primaryHero?.sticky ?? null;
@@ -520,6 +863,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const applyNavProgress = (progress) => {
     const eased = progress;
+    const blurMax = 14;
+    const navBlur = blurMax * eased;
 
     if (navbar && !isMobile()) {
       const padYExpanded = 56;
@@ -527,15 +872,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const padY = padYExpanded - (padYExpanded - padYOriginal) * eased;
       navbar.style.setProperty("--nav-pad-y", `${padY.toFixed(2)}px`);
 
-      const bgAlphaMax = 0.75;
+      const bgAlphaMax = 0.58;
       const bgAlpha = bgAlphaMax * eased;
       navbar.style.setProperty("--nav-bg-alpha", `${bgAlpha.toFixed(3)}`);
+      navbar.style.setProperty("--nav-blur", `${navBlur.toFixed(2)}px`);
     } else if (navbar && isMobile()) {
       navbar.style.setProperty("--nav-pad-y", "18px");
+      const bgAlphaMax = 0.58;
       navbar.style.setProperty(
         "--nav-bg-alpha",
-        `${(0.75 * eased).toFixed(3)}`,
+        `${(bgAlphaMax * eased).toFixed(3)}`,
       );
+      navbar.style.setProperty("--nav-blur", `${navBlur.toFixed(2)}px`);
     }
 
     if (navContainer && !isMobile()) {
@@ -583,15 +931,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const denom = Math.max(viewportHeight - cachedNavbarHeight, 1);
       const progress = clamp01((viewportHeight - appTop) / denom);
       navProgress = progress;
+      const shouldForceTopReset = scrollY <= 2 && progress <= 0.02;
 
       const progressChanged = Math.abs(progress - lastPrimaryProgress) > 0.005;
-      if (progressChanged) {
+      if (progressChanged || shouldForceTopReset) {
         lastPrimaryProgress = progress;
 
         const eased = progress;
 
         if (primaryHeroSticky) {
-          const scale = 1 - eased * 0.25;
+          const scale = shouldForceTopReset ? 1 : 1 - eased * 0.25;
 
           if (Math.abs(scale - lastPrimaryScale) > 0.002) {
             const scaleStr = scale.toFixed(4);
@@ -758,9 +1107,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
   const scrollToTarget = (target) => {
     if (!target) return;
-    const navOffset = navbar?.offsetHeight ?? 0;
-    const targetTop =
-      target.getBoundingClientRect().top + window.pageYOffset - navOffset;
+    const targetTop = target.getBoundingClientRect().top + window.pageYOffset;
 
     if (lenis) {
       lenis.scrollTo(targetTop, {
@@ -793,15 +1140,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  navToggle.addEventListener("click", () => {
-    navToggle.classList.add("animating");
-    navToggle.classList.toggle("active");
-    navMenus.forEach((menu) => menu.classList.toggle("active"));
-  });
+  const closeMobileNav = () => {
+    navMenus.forEach((menu) => menu.classList.remove("active"));
+    if (navToggle) navToggle.classList.remove("active");
+  };
 
-  navToggle.addEventListener("transitionend", () => {
-    navToggle.classList.remove("animating");
-  });
+  if (navToggle) {
+    navToggle.addEventListener("click", () => {
+      navToggle.classList.add("animating");
+      navToggle.classList.toggle("active");
+      navMenus.forEach((menu) => menu.classList.toggle("active"));
+    });
+
+    navToggle.addEventListener("transitionend", () => {
+      navToggle.classList.remove("animating");
+    });
+  }
 
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("click", (event) => {
@@ -814,10 +1168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      navMenus.forEach((menu) => menu.classList.remove("active"));
-      setTimeout(() => {
-        navToggle.classList.remove("active");
-      }, 300);
+      closeMobileNav();
     });
   });
 
@@ -826,10 +1177,7 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       scrollToTop();
 
-      navMenus.forEach((menu) => menu.classList.remove("active"));
-      setTimeout(() => {
-        navToggle.classList.remove("active");
-      }, 300);
+      closeMobileNav();
     });
   }
 
