@@ -1743,6 +1743,14 @@ body {
     0 8px 22px rgba(0, 0, 0, 0.24);
 }
 
+.audition-kicker-logo {
+  display: block;
+  width: clamp(160px, 24vw, 260px);
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 20px;
+}
+
 .audition-title {
   display: grid;
   gap: 0.03em;
@@ -2020,6 +2028,11 @@ body {
     letter-spacing: 0.04em;
     margin-bottom: 14px;
     padding: 7px 12px;
+  }
+
+  .audition-kicker-logo {
+    width: clamp(150px, 52vw, 220px);
+    margin-bottom: 14px;
   }
 
   .audition-title-ko {
