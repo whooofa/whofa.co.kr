@@ -177,6 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
     v.preload = "auto";
     v.muted = true;
     v.playsInline = true;
+    v.loop = true;
     v.setAttribute("src", src);
     v.load();
     videoPreloadCache.set(src, v);
@@ -239,6 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
     video.muted = true;
     video.defaultMuted = true;
     video.playsInline = true;
+    video.loop = true;
 
     if (video.readyState === 0) {
       video.load();
@@ -295,6 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (media.tagName === "VIDEO") {
       media.preload = "auto";
+      media.loop = true;
       if (fallbackSrc) {
         media.poster = fallbackSrc;
         media.dataset.fallbackSrc = fallbackSrc;
