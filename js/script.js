@@ -169,6 +169,32 @@ document.addEventListener("DOMContentLoaded", () => {
     if (hero.mediaFallbackSources?.length) preloadHeroMedia(hero.mediaFallbackSources);
   });
 
+  /* ── Eagerly preload all hero video sources ── */
+  const videoPreloadCache = new Map();
+  const preloadVideoSource = (src) => {
+    if (videoPreloadCache.has(src)) return;
+    const v = document.createElement("video");
+    v.preload = "auto";
+    v.muted = true;
+    v.playsInline = true;
+    v.setAttribute("src", src);
+    v.load();
+    videoPreloadCache.set(src, v);
+  };
+  heroContexts.forEach((hero) => {
+    if (hero.mediaSources?.length) hero.mediaSources.forEach(preloadVideoSource);
+  });
+
+  /* ── Set poster as CSS background on initial hero videos ── */
+  heroContexts.forEach((hero) => {
+    (hero.mediaSlots || []).forEach((slot, i) => {
+      if (slot.tagName !== "VIDEO") return;
+      const idx = hero.slotMediaIndices?.[i];
+      const fb = idx >= 0 && hero.mediaFallbackSources?.[idx];
+      if (fb) slot.style.backgroundImage = "url('" + fb + "')";
+    });
+  });
+
   const fallbackToImage = (video) => {
     if (!video?.isConnected) return;
     const fallbackSrc = video.dataset.fallbackSrc || video.getAttribute("poster");
@@ -272,6 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fallbackSrc) {
         media.poster = fallbackSrc;
         media.dataset.fallbackSrc = fallbackSrc;
+        media.style.backgroundImage = "url('" + fallbackSrc + "')";
       }
 
       const currentSrc = media.getAttribute("data-src") || media.getAttribute("src") || "";
