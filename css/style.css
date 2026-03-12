@@ -7,7 +7,7 @@
 }
 
 :root {
-  --intro-section-bg: #000000;
+  --intro-section-bg: #141414;
   --accent-orange: #ff6a26;
   --accent-yellow: #f6c453;
   --accent-green: #39d98a;
@@ -21,7 +21,7 @@
 
 html {
   scroll-behavior: auto;
-  background-color: #000000;
+  background-color: #1a1a1a;
 }
 
 body {
@@ -30,7 +30,7 @@ body {
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
-  background-color: #000000;
+  background-color: #1a1a1a;
   color: #ffffff;
   line-height: 1.6;
   overflow-x: hidden;
