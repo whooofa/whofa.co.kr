@@ -131,10 +131,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let slots = refreshHeroMediaSlots(hero);
     if (!slots.length) return [];
     if (slots.length >= 2) {
-      slots.forEach((slot) => {
-        slot.style.transition = "opacity 0s linear";
-        slot.style.webkitTransition = "opacity 0s linear";
-      });
       return slots;
     }
 
@@ -151,8 +147,6 @@ document.addEventListener("DOMContentLoaded", () => {
     slots = refreshHeroMediaSlots(hero);
     hero.slotMediaIndices = [hero.slotMediaIndices?.[0] ?? hero.currentMediaIndex, -1];
     slots.forEach((slot) => {
-      slot.style.transition = "opacity 0s linear";
-      slot.style.webkitTransition = "opacity 0s linear";
       if (slot.tagName === "VIDEO") bindPosterGuardEvents(slot);
     });
     return slots;
@@ -227,6 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
     guard.className = isHero
       ? "loop-poster-guard loop-poster-guard--hero"
       : "loop-poster-guard loop-poster-guard--phone";
+    guard.dataset.posterVisible = "true";
 
     // 처음부터 보이도록 (CSS 기본 opacity:0 -> inline으로 override)
     guard.style.opacity = "1";
@@ -241,6 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const hidePosterGuard = (video) => {
     const guard = posterGuards.get(video);
     if (!guard) return;
+    guard.dataset.posterVisible = "false";
     guard.style.opacity = "0";
     window.setTimeout(() => {
       if (guard.style.opacity === "0") {
@@ -257,8 +253,57 @@ document.addEventListener("DOMContentLoaded", () => {
     if (posterSrc && guard.getAttribute("src") !== posterSrc) {
       guard.src = posterSrc;
     }
+    guard.dataset.posterVisible = "true";
     guard.style.visibility = "visible";
+    if (video.classList.contains("hero-media")) {
+      guard.style.opacity = video.style.opacity || "0";
+      return;
+    }
     guard.style.opacity = "1";
+  };
+
+  const markVideoSurfacePending = (video) => {
+    if (!video) return;
+    video.dataset.surfaceReady = "false";
+    if (video.classList.contains("phone-screenshot")) {
+      video.style.opacity = "0";
+    }
+  };
+
+  const markVideoSurfaceReady = (video) => {
+    if (!video) return;
+    video.dataset.surfaceReady = "true";
+  };
+
+  const syncHeroSlotLayer = (slot, opacity, zIndex) => {
+    if (!slot) return;
+    slot.style.zIndex = `${zIndex}`;
+    slot.style.opacity = `${opacity}`;
+
+    const guard = posterGuards.get(slot);
+    if (!guard) return;
+
+    const guardZIndex = Math.max(zIndex + 1, 0);
+    guard.style.zIndex = `${guardZIndex}`;
+    if (guard.dataset.posterVisible === "true") {
+      guard.style.opacity = `${opacity}`;
+      if (Number(opacity) > 0) {
+        guard.style.visibility = "visible";
+      }
+    }
+  };
+
+  const getVideoSurfaceGeneration = (video) => {
+    if (!video) return 0;
+    return Number(video.dataset.surfaceGeneration || "0");
+  };
+
+  const beginVideoSurfaceGeneration = (video) => {
+    if (!video) return 0;
+    const nextGeneration = getVideoSurfaceGeneration(video) + 1;
+    video.dataset.surfaceGeneration = `${nextGeneration}`;
+    markVideoSurfacePending(video);
+    return nextGeneration;
   };
 
   const bindPosterGuardEvents = (video) => {
@@ -267,6 +312,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!guard) return;
 
     video.dataset.posterGuardBound = "true";
+    video.dataset.surfaceReady = "false";
+    video.dataset.surfaceGeneration = video.dataset.surfaceGeneration || "0";
 
     // native poster 제거 (poster → video surface 전환 시 gray flash 방지)
     if (video.hasAttribute("poster")) {
@@ -274,17 +321,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const isPhoneVideo = video.classList.contains("phone-screenshot");
-
-    // ★ 핵심: 비디오를 투명하게 만듦 → 회색 surface가 보이지 않음
-    if (isPhoneVideo) {
-      video.style.opacity = "0";
-    }
+    markVideoSurfacePending(video);
 
     let revealed = false;
 
     const revealVideo = () => {
       if (revealed) return;
       revealed = true;
+      markVideoSurfaceReady(video);
       // 비디오를 서서히 나타냄 + 가드를 서서히 숨김
       if (isPhoneVideo) {
         video.style.transition = "opacity 0.35s ease-out";
@@ -295,18 +339,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const safeHide = () => {
       if (revealed || video.paused || video.readyState < 3) return;
+      const activeGeneration = getVideoSurfaceGeneration(video);
 
       if ("requestVideoFrameCallback" in video) {
         // 실제 비디오 프레임이 GPU에 렌더될 때 호출됨
         video.requestVideoFrameCallback(() => {
-          if (!video.paused) revealVideo();
+          if (
+            !video.paused &&
+            activeGeneration === getVideoSurfaceGeneration(video)
+          ) {
+            revealVideo();
+          }
         });
       } else {
         // 폴백: triple-rAF
         window.requestAnimationFrame(() => {
           window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-              if (!video.paused && video.readyState >= 3) revealVideo();
+              if (
+                !video.paused &&
+                video.readyState >= 3 &&
+                activeGeneration === getVideoSurfaceGeneration(video)
+              ) {
+                revealVideo();
+              }
             });
           });
         });
@@ -325,22 +381,30 @@ document.addEventListener("DOMContentLoaded", () => {
       window.setTimeout(safeHide, 80);
     }, { passive: true });
 
+    video.addEventListener("loadeddata", () => {
+      window.setTimeout(safeHide, 0);
+    }, { passive: true });
+
     // 소스 변경 등으로 로딩 다시 시작되면 가드 복원
     video.addEventListener("emptied", () => {
       revealed = false;
       if (isPhoneVideo) {
         video.style.transition = "none";
-        video.style.opacity = "0";
       }
+      markVideoSurfacePending(video);
       showPosterGuard(video);
     }, { passive: true });
 
     video.addEventListener("waiting", () => {
       if (video.readyState < 3 && !revealed) {
-        if (isPhoneVideo) video.style.opacity = "0";
+        markVideoSurfacePending(video);
         showPosterGuard(video);
       }
     }, { passive: true });
+
+    if (!video.paused && video.readyState >= 3) {
+      window.setTimeout(safeHide, 0);
+    }
   };
 
   const pendingPlayPromises = new WeakMap();
@@ -431,6 +495,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const currentSrc = media.getAttribute("data-src") || media.getAttribute("src") || "";
       if (currentSrc !== videoSrc) {
         pendingPlayPromises.delete(media);
+        beginVideoSurfaceGeneration(media);
         showPosterGuard(media);
         media.setAttribute("data-src", videoSrc);
         media.setAttribute("src", videoSrc);
@@ -450,7 +515,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return media.complete && media.naturalWidth > 0;
     }
     if (media.tagName === "VIDEO") {
-      return media.readyState >= 2;
+      if (media.dataset.posterGuardBound === "true") {
+        return media.dataset.surfaceReady === "true";
+      }
+      return media.readyState >= 3;
     }
     return true;
   };
@@ -720,6 +788,11 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     if (primarySlotIndex < 0) return;
 
+    if (segmentEnd > segmentStart) {
+      const preloadSlotIndex = primarySlotIndex === 0 ? 1 : 0;
+      ensureSlotForMedia(hero, segmentEnd, preloadSlotIndex);
+    }
+
     let secondarySlotIndex = -1;
     if (toIndex !== fromIndex) {
       secondarySlotIndex = ensureSlotForMedia(
@@ -737,21 +810,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     slots.forEach((slot, index) => {
       if (index === primarySlotIndex) {
-        slot.style.zIndex = "2";
-        slot.style.opacity = `${(1 - fadeAmount).toFixed(3)}`;
+        syncHeroSlotLayer(slot, (1 - fadeAmount).toFixed(3), 2);
         if (!slot.classList.contains("is-active")) slot.classList.add("is-active");
         return;
       }
 
       if (index === secondarySlotIndex) {
-        slot.style.zIndex = "1";
-        slot.style.opacity = "1";
+        syncHeroSlotLayer(slot, fadeAmount.toFixed(3), 1);
         if (!slot.classList.contains("is-active")) slot.classList.add("is-active");
         return;
       }
 
-      slot.style.zIndex = "0";
-      slot.style.opacity = "0";
+      syncHeroSlotLayer(slot, "0", 0);
       slot.classList.remove("is-active");
     });
 
