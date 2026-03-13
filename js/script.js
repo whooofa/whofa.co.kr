@@ -153,6 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
     slots.forEach((slot) => {
       slot.style.transition = "opacity 0s linear";
       slot.style.webkitTransition = "opacity 0s linear";
+      if (slot.tagName === "VIDEO") bindPosterGuardEvents(slot);
     });
     return slots;
   };
@@ -196,6 +197,153 @@ document.addEventListener("DOMContentLoaded", () => {
     video.replaceWith(img);
   };
 
+  /* ── Poster Guard: 비디오 로딩 중 회색 화면 방지 ──
+     핵심 전략: 비디오 엘리먼트 자체를 opacity: 0으로 숨김.
+     → 회색 video surface가 절대 보이지 않음.
+     → 포스터 가드(img)가 아래에서 포스터 이미지를 보여줌.
+     → 실제 프레임이 디코딩된 후 비디오를 fade-in, 가드를 fade-out. */
+  const posterGuards = new WeakMap();
+
+  const createPosterGuard = (video) => {
+    if (!video || video.tagName !== "VIDEO") return null;
+    if (posterGuards.has(video)) return posterGuards.get(video);
+
+    const posterSrc =
+      video.dataset.fallbackSrc || video.getAttribute("poster") || "";
+    if (!posterSrc) return null;
+
+    const guard = document.createElement("img");
+    guard.src = posterSrc;
+    guard.alt = "";
+    guard.draggable = false;
+    guard.loading = "eager";
+    guard.decoding = "sync";
+    guard.setAttribute("aria-hidden", "true");
+
+    const isHero =
+      video.classList.contains("hero-media-video") ||
+      video.classList.contains("hero-media");
+
+    guard.className = isHero
+      ? "loop-poster-guard loop-poster-guard--hero"
+      : "loop-poster-guard loop-poster-guard--phone";
+
+    // 처음부터 보이도록 (CSS 기본 opacity:0 -> inline으로 override)
+    guard.style.opacity = "1";
+    guard.style.visibility = "visible";
+
+    // video 바로 앞에 삽입 (video가 opacity:0이므로 가드가 보임)
+    video.insertAdjacentElement("beforebegin", guard);
+    posterGuards.set(video, guard);
+    return guard;
+  };
+
+  const hidePosterGuard = (video) => {
+    const guard = posterGuards.get(video);
+    if (!guard) return;
+    guard.style.opacity = "0";
+    window.setTimeout(() => {
+      if (guard.style.opacity === "0") {
+        guard.style.visibility = "hidden";
+      }
+    }, 500);
+  };
+
+  const showPosterGuard = (video) => {
+    const guard = posterGuards.get(video);
+    if (!guard) return;
+    const posterSrc =
+      video.dataset.fallbackSrc || video.getAttribute("poster") || "";
+    if (posterSrc && guard.getAttribute("src") !== posterSrc) {
+      guard.src = posterSrc;
+    }
+    guard.style.visibility = "visible";
+    guard.style.opacity = "1";
+  };
+
+  const bindPosterGuardEvents = (video) => {
+    if (!video || video.dataset.posterGuardBound === "true") return;
+    const guard = createPosterGuard(video);
+    if (!guard) return;
+
+    video.dataset.posterGuardBound = "true";
+
+    // native poster 제거 (poster → video surface 전환 시 gray flash 방지)
+    if (video.hasAttribute("poster")) {
+      video.removeAttribute("poster");
+    }
+
+    const isPhoneVideo = video.classList.contains("phone-screenshot");
+
+    // ★ 핵심: 비디오를 투명하게 만듦 → 회색 surface가 보이지 않음
+    if (isPhoneVideo) {
+      video.style.opacity = "0";
+    }
+
+    let revealed = false;
+
+    const revealVideo = () => {
+      if (revealed) return;
+      revealed = true;
+      // 비디오를 서서히 나타냄 + 가드를 서서히 숨김
+      if (isPhoneVideo) {
+        video.style.transition = "opacity 0.35s ease-out";
+        video.style.opacity = "1";
+      }
+      hidePosterGuard(video);
+    };
+
+    const safeHide = () => {
+      if (revealed || video.paused || video.readyState < 3) return;
+
+      if ("requestVideoFrameCallback" in video) {
+        // 실제 비디오 프레임이 GPU에 렌더될 때 호출됨
+        video.requestVideoFrameCallback(() => {
+          if (!video.paused) revealVideo();
+        });
+      } else {
+        // 폴백: triple-rAF
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+              if (!video.paused && video.readyState >= 3) revealVideo();
+            });
+          });
+        });
+      }
+    };
+
+    video.addEventListener("playing", () => {
+      window.setTimeout(safeHide, 80);
+    }, { passive: true });
+
+    video.addEventListener("timeupdate", () => {
+      if (video.currentTime > 0.08) safeHide();
+    }, { passive: true });
+
+    video.addEventListener("seeked", () => {
+      window.setTimeout(safeHide, 80);
+    }, { passive: true });
+
+    // 소스 변경 등으로 로딩 다시 시작되면 가드 복원
+    video.addEventListener("emptied", () => {
+      revealed = false;
+      if (isPhoneVideo) {
+        video.style.transition = "none";
+        video.style.opacity = "0";
+      }
+      showPosterGuard(video);
+    }, { passive: true });
+
+    video.addEventListener("waiting", () => {
+      if (video.readyState < 3 && !revealed) {
+        if (isPhoneVideo) video.style.opacity = "0";
+        showPosterGuard(video);
+      }
+    }, { passive: true });
+  };
+
+  const pendingPlayPromises = new WeakMap();
   const tryAutoplay = (video, options = {}) => {
     const { forceRetry = false } = options;
     if (!video || video.tagName !== "VIDEO") return;
@@ -207,6 +355,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ) {
       return;
     }
+
+    if (pendingPlayPromises.has(video)) return;
 
     video.dataset.autoplayTried = "true";
     video.dataset.autoplayFailures = video.dataset.autoplayFailures || "0";
@@ -222,29 +372,33 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       playPromise = video.play();
     } catch (error) {
-      fallbackToImage(video);
       return;
     }
 
     if (playPromise && typeof playPromise.catch === "function") {
+      pendingPlayPromises.set(video, playPromise);
       playPromise
         .then(() => {
+          pendingPlayPromises.delete(video);
           video.dataset.autoplayFailures = "0";
         })
         .catch((error) => {
+          pendingPlayPromises.delete(video);
           const failures = Number(video.dataset.autoplayFailures || "0") + 1;
           video.dataset.autoplayFailures = `${failures}`;
           const isTransientError =
             error?.name === "AbortError" || error?.name === "NotAllowedError";
-          if (isTransientError && failures < 3 && video.isConnected) {
+          if (isTransientError && failures < 6 && video.isConnected) {
             window.setTimeout(() => {
               if (!video.isConnected) return;
               tryAutoplay(video, { forceRetry: true });
-            }, 120);
+            }, 250);
             return;
           }
 
-        fallbackToImage(video);
+          if (!isTransientError) {
+            fallbackToImage(video);
+          }
         });
     }
   };
@@ -276,12 +430,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const currentSrc = media.getAttribute("data-src") || media.getAttribute("src") || "";
       if (currentSrc !== videoSrc) {
+        pendingPlayPromises.delete(media);
+        showPosterGuard(media);
         media.setAttribute("data-src", videoSrc);
         media.setAttribute("src", videoSrc);
         media.load();
       }
 
       media.dataset.autoplayTried = "false";
+      media.dataset.autoplayFailures = "0";
       tryAutoplay(media, { forceRetry: true });
       hero.slotMediaIndices[slotIndex] = mediaIndex;
     }
@@ -324,12 +481,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
     autoplayVideos.forEach((video) => {
+      bindPosterGuardEvents(video);
       video.addEventListener(
         "error",
         () => {
+          const errorRetries = Number(video.dataset.errorRetries || "0") + 1;
+          video.dataset.errorRetries = `${errorRetries}`;
+          if (errorRetries < 3 && video.isConnected) {
+            window.setTimeout(() => {
+              if (!video.isConnected) return;
+              video.load();
+              tryAutoplay(video, { forceRetry: true });
+            }, 300);
+            return;
+          }
           fallbackToImage(video);
         },
-        { once: true },
+        { once: false },
       );
     });
 
@@ -338,13 +506,19 @@ document.addEventListener("DOMContentLoaded", () => {
         (entries) => {
           entries.forEach((entry) => {
             const video = entry.target;
-            if (!entry.isIntersecting) return;
-            if (video.paused || video.ended) {
-              tryAutoplay(video, { forceRetry: true });
+            if (entry.isIntersecting) {
+              if (video.paused || video.ended || video.readyState < 3) {
+                pendingPlayPromises.delete(video);
+                tryAutoplay(video, { forceRetry: true });
+              }
+            } else {
+              if (!video.paused && !video.classList.contains("hero-media-video")) {
+                video.pause();
+              }
             }
           });
         },
-        { threshold: [0, 0.2, 0.5] },
+        { threshold: [0, 0.15] },
       );
 
       autoplayVideos.forEach((video) => {
@@ -359,9 +533,17 @@ document.addEventListener("DOMContentLoaded", () => {
         if (document.hidden) return;
         autoplayVideos.forEach((video) => {
           if (!video.isConnected || !video.paused) return;
+          pendingPlayPromises.delete(video);
           tryAutoplay(video, { forceRetry: true });
         });
       });
+      window.addEventListener("pageshow", () => {
+        autoplayVideos.forEach((video) => {
+          if (!video.isConnected || !video.paused) return;
+          pendingPlayPromises.delete(video);
+          tryAutoplay(video, { forceRetry: true });
+        });
+      }, { passive: true });
     } else {
       autoplayVideos.forEach((video) => {
         tryAutoplay(video);
